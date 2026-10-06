@@ -8,6 +8,7 @@ import IosInstallModal from './components/IosInstallModal';
 import MobileBottomNav from './components/MobileBottomNav';
 import AffiliateSettingsModal from './components/AffiliateSettingsModal';
 import { initialSecretSantaEvent, initialWhiteElephantEvent } from './data/mockData';
+import { createBlankSecretSantaEvent, normalizeLoadedEvent } from './data/eventState';
 import { decodeSecretPayload } from './utils/crypto';
 import { sound } from './utils/audio';
 
@@ -22,9 +23,10 @@ export default function App() {
   const [secretSantaEvent, setSecretSantaEvent] = useState(() => {
     try {
       const saved = localStorage.getItem('giftloop_secretsanta_v2');
-      return saved ? JSON.parse(saved) : initialSecretSantaEvent;
+      const parsed = saved ? JSON.parse(saved) : null;
+      return normalizeLoadedEvent(parsed, initialSecretSantaEvent, createBlankSecretSantaEvent);
     } catch {
-      return initialSecretSantaEvent;
+      return createBlankSecretSantaEvent();
     }
   });
 
@@ -78,11 +80,22 @@ export default function App() {
   const handleResetDemoData = () => {
     if (window.confirm('Reset all games and participants to sample holiday data?')) {
       sound.playClick();
-      setSecretSantaEvent(initialSecretSantaEvent);
-      setWhiteElephantEvent(initialWhiteElephantEvent);
+      setSecretSantaEvent(structuredClone(initialSecretSantaEvent));
+      setWhiteElephantEvent(structuredClone(initialWhiteElephantEvent));
       localStorage.removeItem('giftloop_secretsanta_v2');
       localStorage.removeItem('giftloop_whiteelephant_v2');
     }
+  };
+
+  const handleStartNewExchange = () => {
+    if (!window.confirm('Start a new Secret Santa on this device? The current exchange will be replaced.')) return;
+    sound.playClick();
+    setSecretSantaEvent(createBlankSecretSantaEvent());
+  };
+
+  const handleLoadSampleExchange = () => {
+    sound.playClick();
+    setSecretSantaEvent(structuredClone(initialSecretSantaEvent));
   };
 
   // If user opened a direct secret link via URL:
@@ -130,6 +143,8 @@ export default function App() {
             event={secretSantaEvent}
             onUpdateEvent={setSecretSantaEvent}
             onPreviewReveal={(payload) => setPreviewPayload(payload)}
+            onStartNewExchange={handleStartNewExchange}
+            onLoadSample={handleLoadSampleExchange}
           />
         )}
 
