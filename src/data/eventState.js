@@ -10,7 +10,7 @@ export function makeId(prefix) {
 }
 
 export function createNameRow() {
-  return { id: makeId('p'), name: '' };
+  return { id: makeId('p'), name: '', email: '', phone: '' };
 }
 
 export function createBlankSecretSantaEvent() {
@@ -28,6 +28,8 @@ export function createBlankSecretSantaEvent() {
     inviteMessageEdited: false,
     organizerId: makeId('org'),
     organizerName: '',
+    organizerEmail: '',
+    organizerPhone: '',
     includeOrganizer: true,
     nameRows: [createNameRow(), createNameRow()],
     exclusionsChoice: null,
@@ -48,13 +50,14 @@ export function materializeParticipants(event) {
   if (event.includeOrganizer !== false && organizerName && event.organizerId) {
     const prev = existing.get(event.organizerId) || {};
     next.push({
-      email: '',
       wishlist: [],
       likes: '',
       dislikes: '',
       ...prev,
       id: event.organizerId,
       name: organizerName,
+      email: (event.organizerEmail || '').trim(),
+      phone: (event.organizerPhone || '').trim(),
       isOrganizer: true,
     });
   }
@@ -64,18 +67,39 @@ export function materializeParticipants(event) {
     if (!name) continue;
     const prev = existing.get(row.id) || {};
     next.push({
-      email: '',
       wishlist: [],
       likes: '',
       dislikes: '',
       ...prev,
       id: row.id,
       name,
+      email: (row.email || '').trim(),
+      phone: (row.phone || '').trim(),
       isOrganizer: false,
     });
   }
 
   return next;
+}
+
+export function withGiverContact(event, giverId, fields) {
+  const apply = (person) => (person && person.id === giverId ? { ...person, ...fields } : person);
+  const organizer = giverId === event.organizerId
+    ? {
+      organizerEmail: fields.email !== undefined ? fields.email : event.organizerEmail,
+      organizerPhone: fields.phone !== undefined ? fields.phone : event.organizerPhone,
+    }
+    : {};
+  return {
+    ...event,
+    ...organizer,
+    participants: (event.participants || []).map(apply),
+    matches: (event.matches || []).map((match) => ({
+      ...match,
+      giver: apply(match.giver),
+    })),
+    nameRows: (event.nameRows || []).map((row) => (row.id === giverId ? { ...row, ...fields } : row)),
+  };
 }
 
 export function pruneExclusions(exclusions, participants) {
