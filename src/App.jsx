@@ -6,6 +6,7 @@ import GiftIdeasTab from './components/GiftIdeasTab';
 import SecretRevealView from './components/SecretRevealView';
 import IosInstallModal from './components/IosInstallModal';
 import MobileBottomNav from './components/MobileBottomNav';
+import AffiliateSettingsModal from './components/AffiliateSettingsModal';
 import { initialSecretSantaEvent, initialWhiteElephantEvent } from './data/mockData';
 import { decodeSecretPayload } from './utils/crypto';
 import { sound } from './utils/audio';
@@ -15,6 +16,7 @@ export default function App() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [snowEnabled, setSnowEnabled] = useState(true);
   const [showInstallModal, setShowInstallModal] = useState(false);
+  const [showAffiliateModal, setShowAffiliateModal] = useState(false);
 
   // Persistence for Secret Santa Event
   const [secretSantaEvent, setSecretSantaEvent] = useState(() => {
@@ -119,6 +121,7 @@ export default function App() {
         setSnowEnabled={setSnowEnabled}
         onResetDemoData={handleResetDemoData}
         onOpenInstallModal={() => setShowInstallModal(true)}
+        onOpenAffiliateModal={() => setShowAffiliateModal(true)}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 z-10">
@@ -164,6 +167,12 @@ export default function App() {
       <IosInstallModal
         isOpen={showInstallModal}
         onClose={() => setShowInstallModal(false)}
+      />
+
+      {/* Affiliate Partner & Store Settings Modal */}
+      <AffiliateSettingsModal
+        isOpen={showAffiliateModal}
+        onClose={() => setShowAffiliateModal(false)}
       />
     </div>
   );

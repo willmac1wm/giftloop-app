@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, Lightbulb, Copy, Check, ExternalLink, Sparkles } from 'lucide-react';
 import { curatedGiftIdeas } from '../data/mockData';
 import { sound } from '../utils/audio';
+import { generateStoreSearchUrl } from '../utils/affiliate';
 
 export default function GiftIdeasTab({ onAddIdeaToWishlist }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,23 +81,54 @@ export default function GiftIdeasTab({ onAddIdeaToWishlist }) {
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                      <button
-                        onClick={() => handleCopyIdea(item.name)}
-                        className="btn btn-secondary text-xs py-1.5 px-2.5"
-                      >
-                        {isCopied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                        {isCopied ? 'Copied' : 'Copy Name'}
-                      </button>
+                    <div className="pt-2 border-t border-white/5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <button
+                          onClick={() => handleCopyIdea(item.name)}
+                          className="btn btn-secondary text-xs py-1 px-2.5"
+                        >
+                          {isCopied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                          {isCopied ? 'Copied' : 'Copy Name'}
+                        </button>
 
-                      <a
-                        href={`https://www.google.com/search?q=${encodeURIComponent(item.name)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
-                      >
-                        Search <ExternalLink size={12} />
-                      </a>
+                        <span className="text-[10px] text-slate-400 font-mono">Affiliate Tagged</span>
+                      </div>
+
+                      {/* Store Affiliate Links */}
+                      <div className="grid grid-cols-3 gap-1 pt-1 text-[11px]">
+                        <a
+                          href={generateStoreSearchUrl(item.name, 'amazon')}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-1 px-1.5 rounded bg-[#ff9900]/15 text-[#fbbf24] hover:bg-[#ff9900]/25 border border-[#ff9900]/30 transition-colors text-center font-medium truncate flex items-center justify-center gap-1"
+                          title="Buy on Amazon"
+                        >
+                          <span>📦 Amazon</span>
+                          <ExternalLink size={9} />
+                        </a>
+
+                        <a
+                          href={generateStoreSearchUrl(item.name, 'walmart')}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-1 px-1.5 rounded bg-[#0071dc]/15 text-[#60a5fa] hover:bg-[#0071dc]/25 border border-[#0071dc]/30 transition-colors text-center font-medium truncate flex items-center justify-center gap-1"
+                          title="Buy on Walmart"
+                        >
+                          <span>🛒 Walmart</span>
+                          <ExternalLink size={9} />
+                        </a>
+
+                        <a
+                          href={generateStoreSearchUrl(item.name, 'basspro')}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-1 px-1.5 rounded bg-[#b91c1c]/15 text-[#f87171] hover:bg-[#b91c1c]/25 border border-[#b91c1c]/30 transition-colors text-center font-medium truncate flex items-center justify-center gap-1"
+                          title="Buy on Bass Pro Shops"
+                        >
+                          <span>🎣 Bass Pro</span>
+                          <ExternalLink size={9} />
+                        </a>
+                      </div>
                     </div>
                   </div>
                 );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gift, Sparkles, Volume2, VolumeX, Snowflake, RotateCcw, Smartphone } from 'lucide-react';
+import { Gift, Sparkles, Volume2, VolumeX, Snowflake, RotateCcw, Smartphone, Tag } from 'lucide-react';
 import { sound } from '../utils/audio';
 
 export default function Navbar({
@@ -11,6 +11,7 @@ export default function Navbar({
   setSnowEnabled,
   onResetDemoData,
   onOpenInstallModal,
+  onOpenAffiliateModal,
 }) {
   const toggleSound = () => {
     const next = !soundEnabled;
@@ -109,6 +110,18 @@ export default function Navbar({
             title={snowEnabled ? 'Disable Snowfall' : 'Enable Snowfall'}
           >
             <Snowflake size={16} />
+          </button>
+
+          <button
+            onClick={() => {
+              sound.playClick();
+              onOpenAffiliateModal && onOpenAffiliateModal();
+            }}
+            className="btn btn-secondary text-xs py-2 px-2.5 text-amber-400 hover:text-white"
+            title="Configure Amazon, Walmart, Bass Pro Affiliate Tags"
+          >
+            <Tag size={13} />
+            <span className="hidden md:inline">Affiliate Tags</span>
           </button>
 
           <button
