@@ -7,7 +7,8 @@ import SecretRevealView from './components/SecretRevealView';
 import IosInstallModal from './components/IosInstallModal';
 import MobileBottomNav from './components/MobileBottomNav';
 import AffiliateSettingsModal from './components/AffiliateSettingsModal';
-import { initialSecretSantaEvent, initialWhiteElephantEvent } from './data/mockData';
+import { initialSecretSantaEvent, initialWhiteElephantEvent, emptyWhiteElephantEvent } from './data/mockData';
+import { freshSecretSantaEvent } from './utils/wizard';
 import { decodeSecretPayload } from './utils/crypto';
 import { sound } from './utils/audio';
 
@@ -22,9 +23,9 @@ export default function App() {
   const [secretSantaEvent, setSecretSantaEvent] = useState(() => {
     try {
       const saved = localStorage.getItem('giftloop_secretsanta_v2');
-      return saved ? JSON.parse(saved) : initialSecretSantaEvent;
+      return saved ? JSON.parse(saved) : freshSecretSantaEvent();
     } catch {
-      return initialSecretSantaEvent;
+      return freshSecretSantaEvent();
     }
   });
 
@@ -32,9 +33,9 @@ export default function App() {
   const [whiteElephantEvent, setWhiteElephantEvent] = useState(() => {
     try {
       const saved = localStorage.getItem('giftloop_whiteelephant_v2');
-      return saved ? JSON.parse(saved) : initialWhiteElephantEvent;
+      return saved ? JSON.parse(saved) : emptyWhiteElephantEvent;
     } catch {
-      return initialWhiteElephantEvent;
+      return emptyWhiteElephantEvent;
     }
   });
 
@@ -76,12 +77,10 @@ export default function App() {
   }, [whiteElephantEvent]);
 
   const handleResetDemoData = () => {
-    if (window.confirm('Reset all games and participants to sample holiday data?')) {
+    if (window.confirm('Load the sample holiday party? This replaces the Secret Santa and White Elephant saved on this device.')) {
       sound.playClick();
-      setSecretSantaEvent(initialSecretSantaEvent);
+      setSecretSantaEvent({ ...initialSecretSantaEvent, setupComplete: true });
       setWhiteElephantEvent(initialWhiteElephantEvent);
-      localStorage.removeItem('giftloop_secretsanta_v2');
-      localStorage.removeItem('giftloop_whiteelephant_v2');
     }
   };
 
@@ -130,6 +129,7 @@ export default function App() {
             event={secretSantaEvent}
             onUpdateEvent={setSecretSantaEvent}
             onPreviewReveal={(payload) => setPreviewPayload(payload)}
+            onLoadDemo={handleResetDemoData}
           />
         )}
 

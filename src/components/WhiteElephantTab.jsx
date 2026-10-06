@@ -320,6 +320,12 @@ export default function WhiteElephantTab({ event, onUpdateEvent }) {
           </form>
 
           {/* Reordered Players Grid */}
+          {players.length === 0 && (
+            <div className="rounded-xl border border-dashed border-white/15 px-4 py-8 text-center text-sm text-slate-400">
+              No players yet. Add your group here, or load the sample party from the header.
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {players.map((p, idx) => (
               <div

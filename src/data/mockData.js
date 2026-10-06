@@ -1,3 +1,24 @@
+/** Blank exchange shown on a fresh visit. Sample data stays in `initialSecretSantaEvent`. */
+export const emptySecretSantaEvent = {
+  title: '',
+  budget: '',
+  exchangeDate: '',
+  occasion: '',
+  rules: '',
+  organizerName: '',
+  organizerIncluded: true,
+  mutualExclusions: true,
+  guestDrafts: [
+    { id: 'guest_1', name: '' },
+    { id: 'guest_2', name: '' },
+  ],
+  participants: [],
+  exclusions: [],
+  matches: null,
+  setupComplete: false,
+  wizardStep: 0,
+};
+
 export const initialSecretSantaEvent = {
   title: 'Holiday Friends & Family 2026',
   budget: '$30 - $40',
@@ -62,6 +83,17 @@ export const initialSecretSantaEvent = {
     { giverId: 'p4', receiverId: 'p3' },
   ],
   matches: null, // Will populate on draw
+};
+
+export const emptyWhiteElephantEvent = {
+  title: 'White Elephant',
+  maxStealsPerGift: 3,
+  roundOneRedemption: true,
+  players: [],
+  currentTurn: 1,
+  gameStage: 'setup',
+  gifts: [],
+  logs: [],
 };
 
 export const initialWhiteElephantEvent = {

@@ -7,15 +7,18 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
+    "test": "node --test src/utils/wizard.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.2",
+    "@tailwindcss/vite": "^4.3.3",
     "canvas-confetti": "^1.9.4",
     "lucide-react": "^1.52.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.2",

@@ -139,10 +139,10 @@ export default function Navbar({
           <button
             onClick={onResetDemoData}
             className="btn btn-secondary text-xs py-2 px-2.5"
-            title="Reset to sample party data"
+            title="Load the sample holiday party"
           >
             <RotateCcw size={13} />
-            <span className="hidden sm:inline">Reset Demo</span>
+            <span className="hidden sm:inline">Load Demo</span>
           </button>
         </div>
       </div>

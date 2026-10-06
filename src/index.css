@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 :root {
   --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -21,10 +23,12 @@
   --gold-400: #fbbf24;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 html {
@@ -53,7 +57,9 @@ h1, h2, h3, h4, .font-heading {
   font-family: var(--font-heading);
 }
 
-/* Glassmorphism Classes */
+/* Glassmorphism, buttons, and badges live under components so utility
+   classes in the markup (padding, type size, color) can still override them. */
+@layer components {
 .glass-panel {
   background: var(--bg-card);
   backdrop-filter: blur(16px);
@@ -203,8 +209,18 @@ h1, h2, h3, h4, .font-heading {
   border: 1px solid rgba(56, 189, 248, 0.4);
   box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
 }
+}
 
 /* Animations */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 @keyframes gift-bounce {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   25% { transform: translateY(-8px) rotate(-3deg); }
