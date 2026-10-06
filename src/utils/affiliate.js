@@ -131,5 +131,12 @@ export function generateStoreSearchUrl(query, store = 'amazon', config = getStor
       : base;
   }
 
+  if (store === 'bestbuy') {
+    const base = `https://www.bestbuy.com/site/searchpage.jsp?st=${encQuery}`;
+    return config.enabled && config.bestBuyPartnerId
+      ? `${base}&irclickid=${encodeURIComponent(config.bestBuyPartnerId)}`
+      : base;
+  }
+
   return `https://www.google.com/search?q=${encQuery}`;
 }

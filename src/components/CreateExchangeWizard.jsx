@@ -239,6 +239,7 @@ export default function CreateExchangeWizard({
         <ShareStep
           event={event}
           onPreviewReveal={onPreviewReveal}
+          onUpdateEvent={onUpdateEvent}
           onBack={() => goToStep('draw')}
           onRedraw={handleDraw}
           onFinish={() => {
@@ -298,10 +299,10 @@ function StartStep({ onStart, onLoadSample }) {
         <Gift size={28} />
       </div>
       <h2 className="text-3xl font-bold font-heading text-white">Start a Secret Santa</h2>
-      <p className="text-sm text-slate-300 mt-2 mb-5 max-w-md mx-auto">
-        Add your group, decide who should not draw whom, then share a private link.
-        No account and no email — names stay on this device.
-      </p>
+        <p className="text-sm text-slate-300 mt-2 mb-5 max-w-md mx-auto">
+          Add your group with the email or mobile you’ll use to send each private link.
+          No Gift Loop account. Your mail and messages apps do the sending.
+        </p>
       <button type="button" onClick={onStart} className="btn btn-primary text-base px-5 py-3">
         <Sparkles size={18} />
         Start a Secret Santa
@@ -309,7 +310,7 @@ function StartStep({ onStart, onLoadSample }) {
       <ul className="wizard-points">
         <li>Names, budget, and the draw never leave this browser</li>
         <li>Exclusions are a step of their own, before anyone is paired</li>
-        <li>Share by link, text, QR code, or printed slip</li>
+        <li>Email or text each private link from your own phone</li>
       </ul>
       {onLoadSample && (
         <button
@@ -333,67 +334,112 @@ function NamesStep({ event, patch, onBack, onContinue }) {
   const previewCount = materializeParticipants(event).length;
   const canContinue = organizerReady && previewCount >= 2;
 
-  const updateRow = (id, name) => {
+  const updateRow = (id, partial) => {
     patch({
-      nameRows: (event.nameRows || []).map((row) => (row.id === id ? { ...row, name } : row)),
+      nameRows: (event.nameRows || []).map((row) => (row.id === id ? { ...row, ...partial } : row)),
     });
   };
 
   return (
     <StepCard
       title="Who is drawing names?"
-      lede="Start with your name, then everyone else in the group. Emails are not required."
+      lede="Add an email or mobile for each person. That’s how you’ll send their private link after the draw. Nothing is sent yet."
     >
-      <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1" htmlFor="organizer-name">
-        Your name
-      </label>
-      <input
-        id="organizer-name"
-        type="text"
-        value={event.organizerName || ''}
-        onChange={(e) => patch({ organizerName: e.target.value })}
-        placeholder="Your name"
-        className="glass-input w-full mb-3"
-        autoComplete="name"
-      />
-      <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-200 mb-4">
+      <div className="friend-card mb-4">
+        <label className="text-xs font-semibold uppercase tracking-wider text-slate-400" htmlFor="organizer-name">
+          Your name
+        </label>
         <input
-          type="checkbox"
-          checked={event.includeOrganizer !== false}
-          onChange={(e) => patch({ includeOrganizer: e.target.checked })}
-          className="rounded accent-emerald-500 w-4 h-4 cursor-pointer"
+          id="organizer-name"
+          type="text"
+          value={event.organizerName || ''}
+          onChange={(e) => patch({ organizerName: e.target.value })}
+          placeholder="Your name"
+          className="glass-input w-full"
+          autoComplete="name"
         />
-        Include me in the draw
-      </label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <input
+            type="email"
+            value={event.organizerEmail || ''}
+            onChange={(e) => patch({ organizerEmail: e.target.value })}
+            placeholder="Your email"
+            aria-label="Your email"
+            className="glass-input w-full text-sm"
+            autoComplete="email"
+          />
+          <input
+            type="tel"
+            value={event.organizerPhone || ''}
+            onChange={(e) => patch({ organizerPhone: e.target.value })}
+            placeholder="Your mobile"
+            aria-label="Your mobile"
+            className="glass-input w-full text-sm"
+            autoComplete="tel"
+          />
+        </div>
+        <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-200">
+          <input
+            type="checkbox"
+            checked={event.includeOrganizer !== false}
+            onChange={(e) => patch({ includeOrganizer: e.target.checked })}
+            className="rounded accent-emerald-500 w-4 h-4 cursor-pointer"
+          />
+          Include me in the draw
+        </label>
+      </div>
 
       <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1">
         <Users size={13} className="text-emerald-400" />
-        Other people
+        Friends
       </div>
       <div className="space-y-2">
         {(event.nameRows || []).map((row, index) => (
-          <div key={row.id} className="name-row">
+          <div key={row.id} className="friend-card">
+            <div className="friend-card-head">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Friend {index + 1}
+              </span>
+              {(event.nameRows || []).length > 1 && (
+                <button
+                  type="button"
+                  className="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg"
+                  onClick={() => {
+                    sound.playClick();
+                    patch({ nameRows: event.nameRows.filter((item) => item.id !== row.id) });
+                  }}
+                  aria-label={`Remove friend ${index + 1}`}
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
             <input
               type="text"
               value={row.name}
-              onChange={(e) => updateRow(row.id, e.target.value)}
-              placeholder={`Name ${index + 1}`}
+              onChange={(e) => updateRow(row.id, { name: e.target.value })}
+              placeholder="Name"
               className="glass-input w-full"
-              aria-label={`Participant ${index + 2}`}
+              aria-label={`Friend ${index + 1} name`}
             />
-            {(event.nameRows || []).length > 1 && (
-              <button
-                type="button"
-                className="p-2 text-slate-500 hover:text-rose-400 rounded-lg"
-                onClick={() => {
-                  sound.playClick();
-                  patch({ nameRows: event.nameRows.filter((item) => item.id !== row.id) });
-                }}
-                aria-label={`Remove name ${index + 2}`}
-              >
-                <Trash2 size={16} />
-              </button>
-            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input
+                type="email"
+                value={row.email || ''}
+                onChange={(e) => updateRow(row.id, { email: e.target.value })}
+                placeholder="Email"
+                aria-label={`Friend ${index + 1} email`}
+                className="glass-input w-full text-sm"
+              />
+              <input
+                type="tel"
+                value={row.phone || ''}
+                onChange={(e) => updateRow(row.id, { phone: e.target.value })}
+                placeholder="Mobile"
+                aria-label={`Friend ${index + 1} mobile`}
+                className="glass-input w-full text-sm"
+              />
+            </div>
           </div>
         ))}
       </div>
@@ -406,7 +452,7 @@ function NamesStep({ event, patch, onBack, onContinue }) {
         }}
       >
         <Plus size={14} />
-        Add name
+        Add a friend
       </button>
       <p className="text-xs text-slate-500 mt-3">
         {previewCount} {previewCount === 1 ? 'person' : 'people'} in the draw. At least 2 are required.
@@ -911,7 +957,7 @@ function DrawStep({ event, drawError, onBack, onDraw, onEditExclusions }) {
   );
 }
 
-function ShareStep({ event, onPreviewReveal, onBack, onRedraw, onFinish }) {
+function ShareStep({ event, onPreviewReveal, onUpdateEvent, onBack, onRedraw, onFinish }) {
   return (
     <section className="glass-panel-elevated p-5 sm:p-6 border border-emerald-500/30 space-y-4">
       <div>
@@ -920,10 +966,10 @@ function ShareStep({ event, onPreviewReveal, onBack, onRedraw, onFinish }) {
         </span>
         <h2 className="text-2xl font-bold font-heading text-white">Share reveal links</h2>
         <p className="text-sm text-slate-300 mt-1">
-          Send each link by text, WhatsApp, QR, or a printed slip. Wishlists can be added in the studio.
+          Email or text each person their own link. You can still copy, print, or show a QR code.
         </p>
       </div>
-      <RevealLinksPanel event={event} onPreviewReveal={onPreviewReveal} />
+      <RevealLinksPanel event={event} onPreviewReveal={onPreviewReveal} onUpdateEvent={onUpdateEvent} />
       <div className="wizard-nav">
         <button type="button" onClick={onBack} className="btn btn-secondary text-sm">
           <ChevronLeft size={16} />

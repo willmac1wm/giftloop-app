@@ -22,6 +22,7 @@ export default function SecretSantaTab({
   // Form states for adding participant
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newPhone, setNewPhone] = useState('');
   const [newWishlist, setNewWishlist] = useState('');
   const [newLikes, setNewLikes] = useState('');
   const [newDislikes, setNewDislikes] = useState('');
@@ -36,6 +37,7 @@ export default function SecretSantaTab({
       id: 'p_' + Date.now(),
       name: newName.trim(),
       email: newEmail.trim(),
+      phone: newPhone.trim(),
       wishlist: newWishlist.split('\n').map((w) => w.trim()).filter(Boolean),
       likes: newLikes.trim(),
       dislikes: newDislikes.trim(),
@@ -50,6 +52,7 @@ export default function SecretSantaTab({
 
     setNewName('');
     setNewEmail('');
+    setNewPhone('');
     setNewWishlist('');
     setNewLikes('');
     setNewDislikes('');
@@ -251,7 +254,7 @@ export default function SecretSantaTab({
           <h3 className="text-sm font-bold font-heading text-emerald-400 mb-3 uppercase tracking-wider">
             Add New Participant
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
             <div>
               <label className="text-xs text-slate-400 block mb-1">Full Name *</label>
               <input
@@ -264,12 +267,22 @@ export default function SecretSantaTab({
               />
             </div>
             <div>
-              <label className="text-xs text-slate-400 block mb-1">Email or Phone (Optional)</label>
+              <label className="text-xs text-slate-400 block mb-1">Email</label>
               <input
-                type="text"
+                type="email"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 placeholder="jordan@example.com"
+                className="glass-input w-full text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">Mobile</label>
+              <input
+                type="tel"
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                placeholder="555-0100"
                 className="glass-input w-full text-sm"
               />
             </div>
@@ -339,6 +352,7 @@ export default function SecretSantaTab({
                       {p.name}
                     </h3>
                     {p.email && <p className="text-xs text-slate-400">{p.email}</p>}
+                    {p.phone && <p className="text-xs text-slate-400">{p.phone}</p>}
                   </div>
                   <button
                     onClick={() => handleRemoveParticipant(p.id)}
@@ -394,7 +408,7 @@ export default function SecretSantaTab({
               Shareable Secret Reveal Links
             </h2>
           </div>
-          <RevealLinksPanel event={event} onPreviewReveal={onPreviewReveal} />
+          <RevealLinksPanel event={event} onPreviewReveal={onPreviewReveal} onUpdateEvent={onUpdateEvent} />
         </div>
       )}
 
