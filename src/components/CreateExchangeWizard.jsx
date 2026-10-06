@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import confetti from 'canvas-confetti';
+import { celebrateDraw } from '../utils/christmasConfetti';
 import {
   AlertCircle,
   ArrowRight,
@@ -144,12 +144,7 @@ export default function CreateExchangeWizard({
       wizardFurthest: 'share',
       inviteMessage: prepared.inviteMessageEdited ? prepared.inviteMessage : defaultInviteMessage(prepared),
     });
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#10b981', '#f43f5e', '#fbbf24', '#ffffff'],
-    });
+    celebrateDraw();
   };
 
   return (

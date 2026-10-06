@@ -1,3 +1,4 @@
+// Shared send path for any gift-type app: email, text, and the reveal link.
 import { encodeSecretPayload } from './crypto.js';
 import { getStoredAffiliateConfig } from './affiliate.js';
 

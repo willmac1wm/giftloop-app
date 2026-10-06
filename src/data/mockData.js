@@ -65,27 +65,9 @@ export const initialSecretSantaEvent = {
   matches: null, // Will populate on draw
 };
 
-export const initialWhiteElephantEvent = {
-  title: 'Holiday White Elephant Gala',
-  maxStealsPerGift: 3,
-  roundOneRedemption: true,
-  players: [
-    { id: 'we1', name: 'Maya Lin', order: 1 },
-    { id: 'we2', name: 'Liam Chen', order: 2 },
-    { id: 'we3', name: 'Sophia Rodriguez', order: 3 },
-    { id: 'we4', name: 'Marcus Vance', order: 4 },
-    { id: 'we5', name: 'Elena Rostova', order: 5 },
-    { id: 'we6', name: 'Oliver Thorne', order: 6 },
-  ],
-  currentTurn: 1,
-  gameStage: 'setup', // 'setup' | 'in_progress' | 'completed'
-  gifts: [],
-  logs: [],
-};
-
 export const curatedGiftIdeas = [
   {
-    category: 'White Elephant Favorites (Gag & Fun)',
+    category: 'Playful Gifts',
     items: [
       { name: 'Burrito Swaddle Blanket', price: '$22', desc: 'Hilarious realistic giant tortilla plush blanket' },
       { name: 'Desktop Miniature Wacky Flailing Inflatable Tube Guy', price: '$12', desc: 'Instant office morale booster' },

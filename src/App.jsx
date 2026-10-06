@@ -1,42 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
-import SecretSantaTab from './components/SecretSantaTab';
-import WhiteElephantTab from './components/WhiteElephantTab';
-import GiftIdeasTab from './components/GiftIdeasTab';
 import SecretRevealView from './components/SecretRevealView';
 import IosInstallModal from './components/IosInstallModal';
-import MobileBottomNav from './components/MobileBottomNav';
 import AffiliateSettingsModal from './components/AffiliateSettingsModal';
-import { initialSecretSantaEvent, initialWhiteElephantEvent } from './data/mockData';
-import { createBlankSecretSantaEvent, normalizeLoadedEvent } from './data/eventState';
+import {
+  ExchangeScreen,
+  EXCHANGE_STORAGE_KEY,
+  loadExchange,
+  blankExchange,
+  sampleExchange,
+} from './games/secretSanta';
 import { decodeSecretPayload } from './utils/crypto';
 import { sound } from './utils/audio';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('secret-santa'); // 'secret-santa' | 'white-elephant' | 'gift-ideas'
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [snowEnabled, setSnowEnabled] = useState(true);
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [showAffiliateModal, setShowAffiliateModal] = useState(false);
 
-  // Persistence for Secret Santa Event
-  const [secretSantaEvent, setSecretSantaEvent] = useState(() => {
+  const [exchange, setExchange] = useState(() => {
     try {
-      const saved = localStorage.getItem('giftloop_secretsanta_v2');
+      const saved = localStorage.getItem(EXCHANGE_STORAGE_KEY);
       const parsed = saved ? JSON.parse(saved) : null;
-      return normalizeLoadedEvent(parsed, initialSecretSantaEvent, createBlankSecretSantaEvent);
+      return loadExchange(parsed);
     } catch {
-      return createBlankSecretSantaEvent();
-    }
-  });
-
-  // Persistence for White Elephant Event
-  const [whiteElephantEvent, setWhiteElephantEvent] = useState(() => {
-    try {
-      const saved = localStorage.getItem('giftloop_whiteelephant_v2');
-      return saved ? JSON.parse(saved) : initialWhiteElephantEvent;
-    } catch {
-      return initialWhiteElephantEvent;
+      return blankExchange();
     }
   });
 
@@ -60,42 +49,31 @@ export default function App() {
     }
   }, []);
 
-  // Save events whenever they change
   useEffect(() => {
     try {
-      localStorage.setItem('giftloop_secretsanta_v2', JSON.stringify(secretSantaEvent));
+      localStorage.setItem(EXCHANGE_STORAGE_KEY, JSON.stringify(exchange));
     } catch (e) {
       console.error(e);
     }
-  }, [secretSantaEvent]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('giftloop_whiteelephant_v2', JSON.stringify(whiteElephantEvent));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [whiteElephantEvent]);
+  }, [exchange]);
 
   const handleResetDemoData = () => {
-    if (window.confirm('Reset all games and participants to sample holiday data?')) {
+    if (window.confirm('Reset this Secret Santa to the sample group?')) {
       sound.playClick();
-      setSecretSantaEvent(structuredClone(initialSecretSantaEvent));
-      setWhiteElephantEvent(structuredClone(initialWhiteElephantEvent));
-      localStorage.removeItem('giftloop_secretsanta_v2');
-      localStorage.removeItem('giftloop_whiteelephant_v2');
+      setExchange(sampleExchange());
+      localStorage.removeItem(EXCHANGE_STORAGE_KEY);
     }
   };
 
   const handleStartNewExchange = () => {
     if (!window.confirm('Start a new Secret Santa on this device? The current exchange will be replaced.')) return;
     sound.playClick();
-    setSecretSantaEvent(createBlankSecretSantaEvent());
+    setExchange(blankExchange());
   };
 
   const handleLoadSampleExchange = () => {
     sound.playClick();
-    setSecretSantaEvent(structuredClone(initialSecretSantaEvent));
+    setExchange(sampleExchange());
   };
 
   // If user opened a direct secret link via URL:
@@ -126,8 +104,6 @@ export default function App() {
       {snowEnabled && <Snowfall />}
 
       <Navbar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
         soundEnabled={soundEnabled}
         setSoundEnabled={setSoundEnabled}
         snowEnabled={snowEnabled}
@@ -138,45 +114,25 @@ export default function App() {
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 z-10">
-        {activeTab === 'secret-santa' && (
-          <SecretSantaTab
-            event={secretSantaEvent}
-            onUpdateEvent={setSecretSantaEvent}
-            onPreviewReveal={(payload) => setPreviewPayload(payload)}
-            onStartNewExchange={handleStartNewExchange}
-            onLoadSample={handleLoadSampleExchange}
-          />
-        )}
-
-        {activeTab === 'white-elephant' && (
-          <WhiteElephantTab
-            event={whiteElephantEvent}
-            onUpdateEvent={setWhiteElephantEvent}
-          />
-        )}
-
-        {activeTab === 'gift-ideas' && (
-          <GiftIdeasTab />
-        )}
+        <ExchangeScreen
+          event={exchange}
+          onUpdateEvent={setExchange}
+          onPreviewReveal={(payload) => setPreviewPayload(payload)}
+          onStartNewExchange={handleStartNewExchange}
+          onLoadSample={handleLoadSampleExchange}
+        />
       </main>
 
       <footer className="z-10 py-6 border-t border-white/5 text-center text-xs text-slate-400 no-print hidden sm:block">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>
-            🎁 <strong>GiftLoop</strong> • Privacy-first Secret Santa & White Elephant
+            🎁 <strong>GiftLoop</strong> • Secret Santa
           </span>
           <span className="text-slate-400">
-            Zero email tracking • All matching & tokens encrypted in browser
+            Names stay on this device • Reveal links open in mail and messages
           </span>
         </div>
       </footer>
-
-      {/* iOS Mobile Bottom Navigation Bar */}
-      <MobileBottomNav
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onOpenInstallModal={() => setShowInstallModal(true)}
-      />
 
       {/* iOS Add to Home Screen Instructions Modal */}
       <IosInstallModal

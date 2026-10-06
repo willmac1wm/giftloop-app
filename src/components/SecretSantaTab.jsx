@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import confetti from 'canvas-confetti';
+import { celebrateDraw } from '../utils/christmasConfetti';
 import {
   Users, Plus, Trash2, ShieldAlert, Sparkles, DollarSign, Calendar, AlertCircle,
 } from 'lucide-react';
@@ -88,12 +88,7 @@ export default function SecretSantaTab({
       matches: result.matches,
     });
 
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#10b981', '#f43f5e', '#fbbf24', '#ffffff'],
-    });
+    celebrateDraw();
   };
 
   if (!event.setupComplete) {
