@@ -1,0 +1,10 @@
+{
+  "appId": "com.giftloop.app",
+  "appName": "GiftLoop",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#070b14"
+  }
+}
