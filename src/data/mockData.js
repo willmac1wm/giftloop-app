@@ -3,6 +3,7 @@ export const initialSecretSantaEvent = {
   budget: '$30 - $40',
   exchangeDate: '2026-12-24',
   rules: 'Keep gifts wrapped until party time! Homemade treats and thoughtful gag gifts welcome.',
+  setupComplete: true,
   participants: [
     {
       id: 'p1',

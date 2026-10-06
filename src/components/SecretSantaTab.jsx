@@ -1,22 +1,22 @@
 import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
-import { 
-  Users, Gift, Plus, Trash2, ShieldAlert, Sparkles, Copy, Check, 
-  Share2, QrCode, Eye, Printer, RefreshCw, DollarSign, Calendar, AlertCircle, MessageCircle, Send
+import {
+  Users, Plus, Trash2, ShieldAlert, Sparkles, DollarSign, Calendar, AlertCircle,
 } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { generateSecretSantaDraw } from '../utils/shuffle';
-import { encodeSecretPayload } from '../utils/crypto';
 import ExclusionModal from './ExclusionModal';
-import QRCodeModal from './QRCodeModal';
-import PrintCardsModal from './PrintCardsModal';
+import CreateExchangeWizard from './CreateExchangeWizard';
+import RevealLinksPanel from './RevealLinksPanel';
 
-export default function SecretSantaTab({ event, onUpdateEvent, onPreviewReveal }) {
+export default function SecretSantaTab({
+  event,
+  onUpdateEvent,
+  onPreviewReveal,
+  onStartNewExchange,
+  onLoadSample,
+}) {
   const [showExclusions, setShowExclusions] = useState(false);
-  const [activeQR, setActiveQR] = useState(null); // { participantName, url }
-  const [showPrintModal, setShowPrintModal] = useState(false);
-  const [copiedId, setCopiedId] = useState(null);
-  const [copiedAll, setCopiedAll] = useState(false);
   const [drawError, setDrawError] = useState(null);
 
   // Form states for adding participant
@@ -26,24 +26,6 @@ export default function SecretSantaTab({ event, onUpdateEvent, onPreviewReveal }
   const [newLikes, setNewLikes] = useState('');
   const [newDislikes, setNewDislikes] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
-
-  const getRevealUrlForMatch = (match) => {
-    const payload = {
-      giverName: match.giver.name,
-      receiverName: match.receiver.name,
-      wishlist: match.receiver.wishlist || [],
-      likes: match.receiver.likes || '',
-      dislikes: match.receiver.dislikes || '',
-      budget: event.budget,
-      exchangeDate: event.exchangeDate,
-      eventTitle: event.title,
-      rules: event.rules,
-    };
-    const token = encodeSecretPayload(payload);
-    // Base URL preserving current host & protocol
-    const origin = typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '';
-    return `${origin}?view=reveal&t=${token}`;
-  };
 
   const handleAddParticipant = (e) => {
     e.preventDefault();
@@ -111,62 +93,17 @@ export default function SecretSantaTab({ event, onUpdateEvent, onPreviewReveal }
     });
   };
 
-  const handleCopyLink = (match) => {
-    const url = getRevealUrlForMatch(match);
-    navigator.clipboard.writeText(url);
-    sound.playClick();
-    setCopiedId(match.giver.id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  const handleCopyAllLinks = () => {
-    if (!event.matches) return;
-    sound.playClick();
-    const text = event.matches.map((m) => {
-      const url = getRevealUrlForMatch(m);
-      return `🎁 ${m.giver.name}: ${url}`;
-    }).join('\n\n');
-
-    navigator.clipboard.writeText(`🎄 Secret Santa Links - ${event.title}\n\n` + text);
-    setCopiedAll(true);
-    setTimeout(() => setCopiedAll(false), 2500);
-  };
-
-  const handleWhatsApp = (match) => {
-    const url = getRevealUrlForMatch(match);
-    const text = encodeURIComponent(
-      `🎄 Hi ${match.giver.name}! Here is your secret Secret Santa draw link for "${event.title}":\n\n${url}\n\nTap to unwrap your match! 🤫`
+  if (!event.setupComplete) {
+    return (
+      <CreateExchangeWizard
+        event={event}
+        onUpdateEvent={onUpdateEvent}
+        onPreviewReveal={onPreviewReveal}
+        onLoadSample={onLoadSample}
+        onFinish={(next) => onUpdateEvent({ ...next, setupComplete: true })}
+      />
     );
-    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
-  };
-
-  const handleSMS = (match) => {
-    const url = getRevealUrlForMatch(match);
-    const body = encodeURIComponent(
-      `Hi ${match.giver.name}! Here is your Secret Santa draw link: ${url}`
-    );
-    window.open(`sms:?body=${body}`, '_blank');
-  };
-
-  const handleNativeShare = async (match) => {
-    const url = getRevealUrlForMatch(match);
-    sound.playClick();
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({
-          title: `Secret Santa - ${event.title}`,
-          text: `🎄 Hi ${match.giver.name}! Here is your secret Secret Santa draw link. Tap to unwrap:`,
-          url: url,
-        });
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          console.error(err);
-        }
-      }
-    } else {
-      handleCopyLink(match);
-    }
-  };
+  }
 
   return (
     <div className="space-y-6">
@@ -180,10 +117,13 @@ export default function SecretSantaTab({ event, onUpdateEvent, onPreviewReveal }
             <input
               type="text"
               value={event.title}
-              onChange={(e) => onUpdateEvent({ ...event, title: e.target.value })}
+              onChange={(e) => onUpdateEvent({ ...event, title: e.target.value, titleEdited: true })}
               className="glass-input w-full text-base font-semibold"
               placeholder="e.g. Family Holiday Exchange 2026"
             />
+            {event.occasionLabel && (
+              <span className="badge badge-gold mt-2">{event.occasionLabel}</span>
+            )}
           </div>
 
           <div>
@@ -222,6 +162,23 @@ export default function SecretSantaTab({ event, onUpdateEvent, onPreviewReveal }
             onChange={(e) => onUpdateEvent({ ...event, rules: e.target.value })}
             className="glass-input w-full text-xs"
             placeholder="e.g. Bring wrapped gifts on Christmas Eve; handmade or funny gifts encouraged!"
+          />
+        </div>
+
+        <div className="mt-3">
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+            Invite / share message
+          </label>
+          <textarea
+            value={event.inviteMessage || ''}
+            onChange={(e) => onUpdateEvent({
+              ...event,
+              inviteMessage: e.target.value,
+              inviteMessageEdited: true,
+            })}
+            rows={3}
+            className="glass-input w-full text-xs"
+            placeholder="Included when you text or copy a reveal link. Leave blank to use the short default."
           />
         </div>
       </div>
@@ -266,6 +223,16 @@ export default function SecretSantaTab({ event, onUpdateEvent, onPreviewReveal }
             <Sparkles size={15} />
             {event.matches ? 'Re-Draw Names' : 'Shuffle & Draw Names'}
           </button>
+
+          {onStartNewExchange && (
+            <button
+              type="button"
+              onClick={onStartNewExchange}
+              className="btn btn-secondary text-xs py-2 px-3"
+            >
+              New exchange
+            </button>
+          )}
         </div>
       </div>
 
@@ -419,149 +386,15 @@ export default function SecretSantaTab({ event, onUpdateEvent, onPreviewReveal }
       {/* Matches & Secret Sharing Hub */}
       {event.matches && (
         <div className="glass-panel-elevated p-6 border border-emerald-500/30 animate-fade-in space-y-4">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-white/10">
-            <div>
-              <span className="badge badge-emerald mb-1">
-                <Check size={12} /> Draw Completed & Locked
-              </span>
-              <h2 className="text-2xl font-bold font-heading text-white">
-                Shareable Secret Reveal Links
-              </h2>
-              <p className="text-xs text-slate-300 max-w-xl">
-                Each participant gets their own private link. When they open it, only they can unwrap and see who they got!
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={handleCopyAllLinks}
-                className="btn btn-secondary text-xs py-2 px-3"
-              >
-                {copiedAll ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                {copiedAll ? 'All Copied!' : 'Copy All Links'}
-              </button>
-
-              <button
-                onClick={() => setShowPrintModal(true)}
-                className="btn btn-gold text-xs py-2 px-3"
-              >
-                <Printer size={14} />
-                Print Slips
-              </button>
-            </div>
+          <div className="pb-4 border-b border-white/10">
+            <span className="badge badge-emerald mb-1">
+              Draw Completed & Locked
+            </span>
+            <h2 className="text-2xl font-bold font-heading text-white">
+              Shareable Secret Reveal Links
+            </h2>
           </div>
-
-          {/* Links Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="text-xs uppercase tracking-wider text-slate-400 border-b border-white/10">
-                  <th className="py-2.5 px-3">Participant</th>
-                  <th className="py-2.5 px-3">Secret Link & Sharing</th>
-                  <th className="py-2.5 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {event.matches.map((match) => {
-                  const url = getRevealUrlForMatch(match);
-                  const isCopied = copiedId === match.giver.id;
-
-                  return (
-                    <tr key={match.giver.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="py-3 px-3">
-                        <div className="font-semibold text-white">{match.giver.name}</div>
-                        <div className="text-xs text-slate-400">
-                          {match.giver.email || 'No email registered'}
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-3">
-                        <div className="flex items-center gap-2 max-w-md">
-                          <input
-                            type="text"
-                            readOnly
-                            value={url}
-                            className="glass-input text-xs py-1.5 px-2.5 font-mono text-slate-300 w-full truncate"
-                          />
-                          <button
-                            onClick={() => handleCopyLink(match)}
-                            className="btn btn-secondary text-xs py-1.5 px-2.5 shrink-0"
-                            title="Copy link to clipboard"
-                          >
-                            {isCopied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
-                            {isCopied ? 'Copied' : 'Copy'}
-                          </button>
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleNativeShare(match)}
-                            className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
-                            title="Open iPhone / System Share Sheet"
-                          >
-                            <Share2 size={16} />
-                          </button>
-
-                          <button
-                            onClick={() => handleWhatsApp(match)}
-                            className="p-2 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors"
-                            title="Share via WhatsApp"
-                          >
-                            <MessageCircle size={16} />
-                          </button>
-
-                          <button
-                            onClick={() => handleSMS(match)}
-                            className="p-2 text-sky-400 hover:bg-sky-500/10 rounded-lg transition-colors"
-                            title="Share via SMS"
-                          >
-                            <Send size={16} />
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              sound.playClick();
-                              setActiveQR({
-                                participantName: match.giver.name,
-                                url,
-                              });
-                            }}
-                            className="p-2 text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors"
-                            title="Show Scannable QR Code"
-                          >
-                            <QrCode size={16} />
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              sound.playClick();
-                              onPreviewReveal({
-                                giverName: match.giver.name,
-                                receiverName: match.receiver.name,
-                                wishlist: match.receiver.wishlist || [],
-                                likes: match.receiver.likes || '',
-                                dislikes: match.receiver.dislikes || '',
-                                budget: event.budget,
-                                exchangeDate: event.exchangeDate,
-                                eventTitle: event.title,
-                                rules: event.rules,
-                              });
-                            }}
-                            className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                            title="Preview Reveal View"
-                          >
-                            <Eye size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <RevealLinksPanel event={event} onPreviewReveal={onPreviewReveal} />
         </div>
       )}
 
@@ -580,27 +413,6 @@ export default function SecretSantaTab({ event, onUpdateEvent, onPreviewReveal }
         }}
       />
 
-      {/* QR Code Scan Modal */}
-      {activeQR && (
-        <QRCodeModal
-          isOpen={true}
-          onClose={() => setActiveQR(null)}
-          participantName={activeQR.participantName}
-          url={activeQR.url}
-          eventTitle={event.title}
-        />
-      )}
-
-      {/* Print Slips Modal */}
-      {showPrintModal && (
-        <PrintCardsModal
-          isOpen={true}
-          onClose={() => setShowPrintModal(false)}
-          event={event}
-          matches={event.matches}
-          getRevealUrl={getRevealUrlForMatch}
-        />
-      )}
     </div>
   );
 }
