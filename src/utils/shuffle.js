@@ -1,5 +1,7 @@
 /**
- * Secret Santa matching algorithm supporting custom exclusions & cycle guarantees
+ * Secret Santa draw. Other gift types get their own algorithm.
+ * Exclusions are directional, nobody draws themselves, and a single
+ * gift circle is preferred.
  */
 
 // Fisher-Yates array shuffle

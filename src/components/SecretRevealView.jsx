@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import confetti from 'canvas-confetti';
+import { celebrateUnwrap } from '../utils/christmasConfetti';
 import { Gift, Sparkles, CheckCircle2, Lock, Calendar, DollarSign, Heart, Ban, ArrowLeft, BookmarkCheck } from 'lucide-react';
 import { sound } from '../utils/audio';
 import ShopForMatch from './ShopForMatch';
@@ -48,30 +48,7 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
     sound.playUnwrap();
     setUnwrapped(true);
 
-    // Fire festive holiday confetti
-    confetti({
-      particleCount: 120,
-      spread: 90,
-      origin: { y: 0.6 },
-      colors: ['#10b981', '#f43f5e', '#fbbf24', '#ffffff', '#38bdf8'],
-    });
-
-    setTimeout(() => {
-      confetti({
-        particleCount: 70,
-        angle: 60,
-        spread: 60,
-        origin: { x: 0 },
-        colors: ['#10b981', '#fbbf24'],
-      });
-      confetti({
-        particleCount: 70,
-        angle: 120,
-        spread: 60,
-        origin: { x: 1 },
-        colors: ['#f43f5e', '#ffffff'],
-      });
-    }, 350);
+    celebrateUnwrap();
   };
 
   return (

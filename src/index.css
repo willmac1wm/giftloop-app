@@ -48,7 +48,7 @@ body {
   min-height: -webkit-fill-available;
   overflow-x: hidden;
   line-height: 1.5;
-  padding-bottom: max(60px, env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 h1, h2, h3, h4, .font-heading {
@@ -275,45 +275,6 @@ h1, h2, h3, h4, .font-heading {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
-}
-
-/* iOS Bottom Tab Bar & Mobile Controls */
-.ios-tab-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 45;
-  background: rgba(11, 17, 30, 0.88);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
-  padding-top: 8px;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
-}
-
-.ios-tab-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: #94a3b8;
-  transition: all 0.15s ease;
-  user-select: none;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  padding: 4px 12px;
-  border-radius: 12px;
-}
-
-.ios-tab-item.active {
-  color: #ffffff;
-  transform: scale(1.05);
 }
 
 @keyframes fade-in {

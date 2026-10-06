@@ -1,30 +1,22 @@
-# GiftLoop 🎁 — Secret Santa & White Elephant Hub
+# GiftLoop — Secret Santa
 
-> A modern, privacy-first **Secret Santa** and **White Elephant** (Yankee Swap / Dirty Santa) web and iPhone application. Zero external email collection, provably fair backtracking shuffling with exclusions, client-side secret reveal links, scannable QR passes, and live turn-by-turn game master.
+This app is Secret Santa only. Each gift type is its own app, with its own draw. Email and text sharing, and the affiliate shop, stay the same so a later gift type can replace the Secret Santa draw without rebuilding how links are sent or how guests shop.
+
+The swap point is `src/games/secretSanta.js`. The draw itself is `src/utils/shuffle.js`. Sending links is `src/utils/revealLink.js`. Store referral tags are `src/utils/affiliate.js`.
 
 ---
 
-## 🌟 Key Features
+## Key features
 
-### 🎁 1. Secret Santa Studio (Elfster & DrawNames Alternative)
-- **Circular Hamiltonian Derangement Engine**: Guarantees a single continuous gift circle where no one draws themselves and all mutual/unidirectional exclusion rules are strictly satisfied.
-- **Custom Exclusion Matrix**: Prevent spouses, roommates, or past-year pairs from drawing each other with 1 click.
-- **Client-Side Secret Reveal Links**: Encrypted, URL-safe tokens (`?view=reveal&t=...`) that decrypt only the viewer's assigned match on their device.
-- **Instant Sharing**: 1-click copy link, WhatsApp, SMS, and native iOS share sheet integration (`navigator.share`).
-- **Scannable QR Codes**: Generate on-screen QR passes for in-person holiday parties so guests can scan their assignment directly with their phone camera.
-- **Printable Blind Envelopes**: Pre-formatted printable sheet with fold-over lines for physical party envelopes.
-- **3D Gift Box Unwrap Experience**: Recipients unwrap a 3D animated present with celebratory confetti, holiday chimes, recipient wishlists, and private notes.
+### Secret Santa
+- One gift circle: nobody draws themselves, and exclusion rules are honored.
+- Exclusions are a step of their own before the draw.
+- Private reveal links stay on this device. Email and text open the organizer’s own mail and messages apps.
+- After the name is unwrapped, shop that person through Gift Loop referral links.
+- Christmas confetti on the draw and the unwrap: snowflakes, candy canes, and ornaments.
 
-### 🐘 2. White Elephant (Yankee Swap / Dirty Santa) Arena
-- **Draft & Turn Order Randomizer**: Animated shuffle reel for player sequence (`#1` to `#N`).
-- **Live Game Master**: Interactive turn engine showing whose turn it is and eligible moves.
-- **Steal Mechanism & Frozen Rules**: Configurable max steals per gift (standard 3 steals before it becomes **FROZEN ❄️**).
-- **Robbed Player Flow**: When a gift is stolen, the player is automatically prompted to unwrap a new gift or steal an unlocked gift.
-- **Live Action Feed**: Real-time activity timeline logging every unwrap and steal.
-
-### 📱 3. iPhone & Mobile First (PWA + Capacitor Native)
+### iPhone and mobile (PWA + Capacitor)
 - **iOS Standalone App**: Configured with `apple-mobile-web-app-capable`, safe-area insets (`viewport-fit=cover`, Dynamic Island and Home Bar padding), and standalone web manifest.
-- **Mobile Bottom Navigation**: Apple-style tab bar with haptic feedback for one-handed thumb navigation.
 - **Native Share Sheet**: Direct integration with iOS AirDrop, Messages, and WhatsApp.
 - **Capacitor Support**: Ready to compile into a native `.ipa` for Xcode, TestFlight, or the App Store.
 

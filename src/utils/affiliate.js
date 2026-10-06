@@ -1,4 +1,4 @@
-// Affiliate Linking Engine for Amazon, Walmart, Bass Pro Shops, Target, and More
+// Shared shop tags for any gift-type app. The draw algorithm does not live here.
 
 export const DEFAULT_AFFILIATE_CONFIG = {
   enabled: true,
