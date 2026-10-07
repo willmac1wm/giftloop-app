@@ -109,7 +109,7 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
             Tap to Open Your Secret Gift
           </h2>
           <p className="text-sm text-slate-300 mb-6 max-w-xs">
-            Only you can see who you drew. Click to untie the ribbon and reveal your recipient!
+            Unwrap to see the name stored in this link.
           </p>
 
           <button 
@@ -121,7 +121,7 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
           </button>
 
           <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-6">
-            <Lock size={13} /> Encrypted client-side secret
+            <Lock size={13} /> Anyone with this link can open it
           </div>
         </div>
       ) : (
