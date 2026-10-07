@@ -1,83 +1,86 @@
-# GiftLoop — Secret Santa
+# GiftLoop
 
-This app is Secret Santa only. Each gift type is its own app, with its own draw. Email and text sharing, and the affiliate shop, stay the same so a later gift type can replace the Secret Santa draw without rebuilding how links are sent or how guests shop.
+GiftLoop is a Secret Santa app. An organizer can draw names on this device with no account. A second path, still being connected, stores an exchange in Netlify Database for people who sign in.
 
-The swap point is `src/games/secretSanta.js`. The draw itself is `src/utils/shuffle.js`. Sending links is `src/utils/revealLink.js`. Store referral tags are `src/utils/affiliate.js`.
+Guest reveal links are encoded in the URL. Anyone who receives the link can open it. That is not encryption, and it is not limited to the intended person. Assignments for signed-in members are supposed to open only for the participant who drew that name. That check is not built yet.
 
----
+Paid plans are separate from permissions and are not part of this app yet.
 
-## Key features
+## What works today
 
-### Secret Santa
-- One gift circle: nobody draws themselves, and exclusion rules are honored.
-- Exclusions are a step of their own before the draw.
-- Private reveal links stay on this device. Email and text open the organizer’s own mail and messages apps.
-- After the name is unwrapped, shop that person through Gift Loop referral links.
-- Christmas confetti on the draw and the unwrap: snowflakes, candy canes, and ornaments.
+These run in the browser with `npm run dev`. They do not need a database.
 
-### iPhone and mobile (PWA + Capacitor)
-- **iOS Standalone App**: Configured with `apple-mobile-web-app-capable`, safe-area insets (`viewport-fit=cover`, Dynamic Island and Home Bar padding), and standalone web manifest.
-- **Native Share Sheet**: Direct integration with iOS AirDrop, Messages, and WhatsApp.
-- **Capacitor Support**: Ready to compile into a native `.ipa` for Xcode, TestFlight, or the App Store.
+- Secret Santa setup on this device: names, paste-in import, wish lists, exclusions, occasion, date, budget, and the draw. Data is saved in `localStorage` under `giftloop_secretsanta_v2`.
+- The draw is `src/utils/shuffle.js`. Nobody is paired with themselves, exclusions are directional, and the default is one giving circle. Two people who exclude each other cannot be drawn.
+- After the draw, each person gets a reveal link. **Email link** and **Text link** open the organizer’s own mail and messages apps. Copy, QR, print, WhatsApp, and the device share sheet are there too. Gift Loop does not send those messages.
+- The reveal page reads `?view=reveal&t=`. The token contains the giver, the receiver, and the wish list.
+- Shopping uses Gift Loop referral codes: Amazon, Walmart, Target, Bass Pro Shops, Cabela's, and Best Buy. **Affiliate Tags** accepts a code or a full affiliate link and stores it on this device. The deal banner, shopping-center doors, and gift finder use those codes.
+- The phone browser can use the site. `index.html` has a web manifest and Apple web-app tags. That is not an App Store build.
 
----
+## Partially connected
 
-## 🚀 Getting Started
+These files exist. They do not finish the job in local Vite, because Netlify Identity and Netlify Database run on a Netlify deploy, not inside `npm run dev`.
 
-### Prerequisites
-- Node.js (v18 or newer)
-- npm or yarn
+- **Sign in** (`src/components/AccountScreen.jsx`) calls `@netlify/identity`. Until Identity is enabled for the site, sign-in cannot complete. New accounts are tagged `member` in `netlify/functions/identity-signup.js`. There is no co-organizer, support, or administrator role yet.
+- **Admin** (`src/components/AdminScreen.jsx`) is the organizer’s screen for exchanges stored in the database. The API is `netlify/functions/api.js`. A signed-in user can create an exchange, add people, draw, and ask the server to email or text links. The draw on the server does not take exclusions. The admin response does not include who was paired with whom.
+- **My list** (`src/components/WishListScreen.jsx`) edits the wish-list fields on that person’s row in one exchange. It is not a wish list the member keeps and reuses across exchanges. If the draw has been saved, the signed-in giver can see the person they were assigned.
+- **Email** is Resend, and **text** is Twilio, in `src/server/messages.js`. Sending stays off until `RESEND_API_KEY` and `EMAIL_FROM`, or `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER`, are set in the Netlify environment. The server still puts the guest reveal link in the message, so anyone who receives it can open the assignment. There is no opt-in record, STOP handling, quiet hours, reminder schedule, or delivery webhook.
+- Database tables are exchanges, members, assignments, and deliveries (`db/schema.js`). The migration is `netlify/database/migrations/20261007111631_accounts`. Netlify applies it on deploy. `npm run db:migrate` is only for a local Netlify database.
 
-### Installation & Local Run
+No concrete limit in this app requires replacing Netlify Database, Netlify Identity, Netlify Functions, Resend, or Twilio. Supabase and Inngest were a suggestion. They are not the stack, and this repo does not install them.
+
+## White Elephant
+
+`main` still has the White Elephant game (`src/components/WhiteElephantTab.jsx` on `origin/main`). This branch does not mount it. The files were removed in earlier Secret Santa work, not by this README. This change does not delete White Elephant.
+
+## Roadmap
+
+Permissions below are not subscription tiers. Free use is the current product. Paid tiers can wait.
+
+| Role | Target access | In this branch |
+| --- | --- | --- |
+| Visitor | Public pages and an invitation | The site is public. There is no invitation page. |
+| Member | Account, wish lists they own, their own assignment, notification choices | Sign-in UI and a per-exchange wish-list row |
+| Organizer | One exchange: invites, exclusions, draw | Device wizard, plus the database Admin screen |
+| Co-organizer | Help manage one exchange | Not built |
+| Support staff | Tickets, account help, and failed email or text, without opening assignments | Not built. Delivery rows exist for organizers only. |
+| Administrator | Merchants, affiliate setup, and who has staff access | Not built. Affiliate codes are per browser. |
+
+Next implementation work, in order:
+
+1. Keep the no-account draw. Keep saying that a guest reveal link opens for anyone who has it.
+2. Finish the Netlify Identity and database path on a deploy: create an exchange, sign in as a member, save a wish list, draw with the same exclusion rules as the device draw.
+3. When a signed-in member opens an assignment, require that account. Do not put the recipient’s name in that URL. Leave guest links on the no-account flow.
+4. Store wish lists on the member, and let them attach one to an exchange.
+5. Add co-organizer on a single exchange. Organizers and co-organizers still do not get the pairing list.
+6. Send email and text only after the product rules exist: email from the app, SMS only with that person’s opt-in, and a record of success or failure. Do not start a new draw when a send is retried.
+7. Support staff can see tickets and delivery failures, not assignments. Administrators can manage merchant and affiliate settings and staff access.
+8. Reminders can be scheduled later with Netlify scheduled functions. Replace that only if a real limit shows up.
+
+## Local development
+
+Node.js 22 and npm. `netlify.toml` sets Node 22, which `@netlify/identity` expects.
+
 ```bash
-# Clone the repository
 git clone https://github.com/willmac1wm/giftloop-app.git
 cd giftloop-app
-
-# Install dependencies
 npm install
-
-# Start local dev server
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+Vite prints the local address, usually `http://localhost:5173`.
 
----
-
-## 📱 Running on iPhone
-
-### Option A: Add to Home Screen (Instant PWA)
-1. Open the hosted or local IP URL (`http://<your-local-ip>:5173`) in **Safari** on your iPhone.
-2. Tap the **Share** button (box with upward arrow).
-3. Tap **Add to Home Screen** and tap **Add**.
-4. Launch GiftLoop from your home screen as a standalone full-screen app!
-
-### Option B: Build Native iOS App (Capacitor & Xcode)
 ```bash
-# 1. Build the production web bundle
 npm run build
-
-# 2. Add the iOS platform
-npx cap add ios
-
-# 3. Sync web assets into Xcode project
-npx cap sync ios
-
-# 4. Open in Xcode
-npx cap open ios
+npm run smoke
 ```
-From Xcode, select your iPhone or simulator and hit **Run** (Cmd + R).
 
----
+`npm run db:generate` writes a Drizzle migration. `npm run db:migrate` applies it locally through the Netlify CLI. Do not point that command at production.
 
-## 🔒 Privacy & Security
+Copy `.env.example` only as a list of names. Put real Resend and Twilio values in the Netlify environment. Do not commit them.
 
-- **No Email Harvesting**: Emails and phone numbers are completely optional.
-- **Zero Database Tracking**: All pairings and event data are persisted safely in the browser's `localStorage` and encoded in URL hashes.
-- **Encrypted Reveal Tokens**: Assignments are obfuscated and encoded directly into individual links so only the recipient can see who they drew.
+Capacitor config is `capacitor.config.json`, and the packages are installed. There is no `ios` or `android` project in the repo, and no store build has been verified.
 
----
+## License
 
-## 📄 License
-MIT License. Open source and free for holiday gatherings everywhere!
+This repository has no `LICENSE` file.
