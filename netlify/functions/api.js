@@ -68,6 +68,46 @@ function publicUser(user) {
   };
 }
 
+function identityToken(req) {
+  const header = req.headers.get("authorization") || "";
+  const bearer = /^Bearer\s+(\S+)/i.exec(header);
+  if (bearer) return bearer[1];
+  const cookie = req.headers.get("cookie") || "";
+  const found = /(?:^|;\s*)nf_jwt=([^;]+)/.exec(cookie);
+  return found ? decodeURIComponent(found[1]) : "";
+}
+
+// Netlify's function identity context often has the JWT claims only.
+// Those claims omit confirmed_at, so a confirmed member looks unverified.
+async function currentUser(req) {
+  const context = globalThis.netlifyIdentityContext;
+  if (context && !context.url) {
+    context.url = new URL("/.netlify/identity", req.url).href;
+  }
+  const user = await getUser();
+  if (!user?.id || user.confirmedAt) return user;
+  const token = identityToken(req);
+  if (!token) return user;
+  try {
+    const response = await fetch(new URL("/.netlify/identity/user", req.url), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return user;
+    const data = await response.json();
+    const metadata = data.user_metadata || {};
+    return {
+      ...user,
+      email: user.email || data.email || "",
+      name: user.name || metadata.full_name || metadata.name || "",
+      confirmedAt: data.confirmed_at || "",
+      roles: user.roles || data.app_metadata?.roles,
+      appMetadata: user.appMetadata || data.app_metadata,
+    };
+  } catch {
+    return user;
+  }
+}
+
 async function loadManagedExchange(id, user) {
   if (!UUID.test(String(id || ""))) return null;
   const [exchange] = await db.select().from(exchanges).where(eq(exchanges.id, id)).limit(1);
@@ -146,8 +186,8 @@ async function exchangePayload(exchange) {
   return withoutPairings(view);
 }
 
-async function handleSession() {
-  const user = await getUser();
+async function handleSession(req) {
+  const user = await currentUser(req);
   return json({
     user: user ? publicUser(user) : null,
     providers: readProviders(providerEnv()),
@@ -1085,14 +1125,14 @@ export default async function handler(req, context) {
     const body = await readJson(req);
     if (body === null) return json({ error: "That request was not valid JSON." }, 400);
 
-    if (req.method === "GET" && parts.length === 2 && parts[1] === "session") return handleSession();
+    if (req.method === "GET" && parts.length === 2 && parts[1] === "session") return handleSession(req);
     if (parts[1] === "invites" && parts[2] && req.method === "GET") return handleInviteGet(parts[2]);
     if (parts[1] === "join" && parts[2] && parts.length === 3 && req.method === "GET") return handleJoinGet(parts[2]);
     if (parts[1] === "invites" && parts[2] && parts[3] === "decline" && req.method === "POST") {
       return handleInviteDecline(parts[2]);
     }
 
-    const user = await getUser();
+    const user = await currentUser(req);
     if (!user?.id) return json({ error: "Sign in to continue." }, 401);
     if (parts[1] === "invites" && parts[2] && parts[3] === "accept" && req.method === "POST") {
       return handleInviteAccept(user, parts[2]);

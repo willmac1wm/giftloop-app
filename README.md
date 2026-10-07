@@ -2,7 +2,7 @@
 
 GiftLoop is a Secret Santa app. An organizer can draw names on this device with no account. A second path, still being connected, stores an exchange in Netlify Database for people who sign in.
 
-Guest reveal links are encoded in the URL. Anyone who receives the link can open it. That is not encryption, and it is not limited to the intended person. A saved exchange uses a different link, `?view=assignment&exchange=`, which asks the signed-in participant and does not put the recipient’s name in the URL. That page still needs a Netlify deploy with Identity and the database turned on before it can be tried with real accounts.
+Guest reveal links are encoded in the URL. Anyone who receives the link can open it. That is not encryption, and it is not limited to the intended person. A saved exchange uses a different link, `?view=assignment&exchange=`, which asks the signed-in participant and does not put the recipient’s name in the URL. The isolated preview site below has Identity and the database turned on. Netlify sends the account-confirmation email. GiftLoop’s own invitation and reminder email still needs Resend.
 
 Paid plans are separate from permissions and are not part of this app yet.
 
@@ -56,6 +56,27 @@ Next implementation work, in order:
 2. Prove the reminder queue on a Netlify deploy: quiet hours, opt-out, and a real provider callback. The queue must not draw names again.
 3. Prove support and merchant admin with Identity roles on that deploy. Keep those separate from Manage exchange, and keep assignments out of the support view.
 4. After the shared web exchange passes on desktop and a real iPhone, package it with Capacitor. Packaging is not an App Store release.
+
+## Preview site
+
+The isolated preview is [giftloop-preview-423](https://giftloop-preview-423.netlify.app). It is a separate Netlify project from any future production site. Its production branch is `cursor/shared-exchange-service-234a`, and that is the only allowed branch. Pushes to `main` are not published there.
+
+Another developer can work on it like this:
+
+```bash
+git clone https://github.com/willmac1wm/giftloop-app.git
+cd giftloop-app
+git checkout cursor/shared-exchange-service-234a
+npm install
+npx netlify link --id f860821f-ec0f-46f7-85e3-384f68a9fd51
+npx netlify deploy --build
+```
+
+`npx netlify deploy --build` uploads a draft. `npx netlify deploy --build --prod` publishes that same site’s public URL. Do not point these commands at a different site. Local `npm run dev` still does not run Identity or the database.
+
+Git-based builds are configured for that one branch. They currently fail while preparing the repo (`Host key verification failed`) because this project has no GitHub deploy key and the Netlify GitHub app is not installed on `willmac1wm/giftloop-app`. Installing the Netlify GitHub app on that repository, with access to this branch, is what makes a push deploy by itself. Until then, use the CLI deploy above.
+
+Set Resend and Twilio only in the Netlify UI for this project, as secrets, for the functions runtime. The names are in `.env.example`. Leave the example values empty. Do not commit a `.env` file.
 
 ## Local development
 
