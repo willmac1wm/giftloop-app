@@ -14,6 +14,7 @@ export default function AccountScreen({
   staff = "",
   onOpenSupport,
   onOpenMerchants,
+  onOpenAffiliate,
 }) {
   const [mode, setMode] = useState(recovery ? "recovery" : "login");
   const [name, setName] = useState("");
@@ -105,6 +106,9 @@ export default function AccountScreen({
               {staff === "admin" && (
                 <button type="button" className="btn btn-secondary text-xs" onClick={onOpenMerchants}>Platform merchants</button>
               )}
+              {staff === "admin" && onOpenAffiliate && (
+                <button type="button" className="btn btn-secondary text-xs" onClick={onOpenAffiliate}>Affiliate tags</button>
+              )}
             </div>
           )}
         </div>
@@ -112,6 +116,7 @@ export default function AccountScreen({
 
       {(!user || mode === "recovery") && (
       <>
+      <p className="text-sm text-slate-200 mb-3">Support is on this page after you sign in.</p>
       <form onSubmit={submit} className="space-y-3">
         {mode === "signup" && (
           <label className="block text-xs text-slate-300">

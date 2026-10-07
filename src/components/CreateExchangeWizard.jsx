@@ -39,6 +39,9 @@ import {
 } from '../data/eventState';
 import RevealLinksPanel from './RevealLinksPanel';
 import GiftFinder from './GiftFinder';
+import ExchangeWishLinks from './ExchangeWishLinks';
+import { organizerMatch } from '../exchange/progress';
+import { buildRevealPayload } from '../utils/revealLink';
 
 const PROGRESS_STEPS = [
   { id: 'names', label: 'Names' },
@@ -172,6 +175,17 @@ export default function CreateExchangeWizard({
             );
           })}
         </ol>
+      )}
+
+      {step !== 'start' && (
+        <ExchangeWishLinks
+          event={event}
+          onOpenMine={() => goToStep('wishes')}
+          onPreview={() => {
+            const match = organizerMatch(event);
+            if (match) onPreviewReveal(buildRevealPayload(event, match));
+          }}
+        />
       )}
 
       {step === 'start' && (
@@ -570,9 +584,9 @@ function WishesStep({ event, patch, onBack, onContinue }) {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-bold font-heading text-white">Gift finder</h2>
+        <h2 className="text-2xl font-bold font-heading text-white">My wish list</h2>
         <p className="text-sm text-slate-300 mt-1">
-          Filter by price, age, and who the gift is for. Add picks to their list. Nothing here needs an account.
+          Add a product link or a gift idea. Filter by price, age, and who the gift is for when you want more ideas. Nothing here needs an account.
         </p>
       </div>
       {person && (

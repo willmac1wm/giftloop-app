@@ -19,7 +19,7 @@ function Gate({ onNeedAccount }) {
   );
 }
 
-export default function WishListScreen({ user, onNeedAccount }) {
+export default function WishListScreen({ user, onNeedAccount, exchangeId = "" }) {
   const [lists, setLists] = useState([]);
   const [activeId, setActiveId] = useState("");
   const [draft, setDraft] = useState(null);
@@ -46,7 +46,7 @@ export default function WishListScreen({ user, onNeedAccount }) {
         if (cancel) return;
         const rows = memberships.lists || [];
         setLists(rows);
-        const first = rows[0];
+        const first = rows.find((item) => item.exchangeId === exchangeId) || rows[0];
         setActiveId(first?.memberId || "");
         setDraft(first || null);
         const owned = saved.lists || [];
@@ -62,7 +62,7 @@ export default function WishListScreen({ user, onNeedAccount }) {
     return () => {
       cancel = true;
     };
-  }, [user]);
+  }, [user, exchangeId]);
 
   if (!user) return <Gate onNeedAccount={onNeedAccount} />;
 
@@ -93,7 +93,7 @@ export default function WishListScreen({ user, onNeedAccount }) {
   return (
     <section className="glass-panel p-5 max-w-2xl mx-auto space-y-4">
       <div>
-        <h2 className="text-xl font-bold font-heading text-white">Wish list</h2>
+        <h2 className="text-xl font-bold font-heading text-white">My wish list</h2>
         <p className="text-xs text-slate-400">Signed in as {user.email}. Add a gift, then share the list with an exchange. Notification preferences are in Account.</p>
       </div>
       <div className="grid sm:grid-cols-2 gap-3">
@@ -274,7 +274,7 @@ export default function WishListScreen({ user, onNeedAccount }) {
             <Save size={14} /> Save wish list
           </button>
           <div className="rounded-xl border border-white/10 bg-slate-900/50 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-400">My recipient</p>
+            <p className="text-xs uppercase tracking-wide text-slate-400">My recipient&apos;s wishes</p>
             {draft.givingTo ? (
               <>
                 <p className="text-sm text-white mt-1">You are giving to {draft.givingTo.name}</p>

@@ -3,6 +3,7 @@ import { Check, ExternalLink, Plus, Search, X } from 'lucide-react';
 import { AGE_BANDS, SHOP_FOR } from '../data/giftProfile';
 import { budgetCeiling } from '../utils/shop';
 import { CENTER_STORES, generateStoreSearchUrl } from '../utils/affiliate';
+import ShopDisclosure from './ShopDisclosure';
 import StoreConcourse from './StoreConcourse';
 import { FINDER_CATEGORIES, filterGifts } from '../utils/giftFinder';
 import { sound } from '../utils/audio';
@@ -99,8 +100,9 @@ export default function GiftFinder({
       <section className="gift-finder-results">
         <StoreConcourse activeId={activeStore} onSelect={setActiveStore} label="Choose a store" />
         <p className="store-concourse-note">
-          Shopping at {CENTER_STORES.find((store) => store.id === activeStore)?.name}. Every door uses a Gift Loop referral link.
+          Shopping at {CENTER_STORES.find((store) => store.id === activeStore)?.name}.
         </p>
+        <ShopDisclosure />
         <div className="gift-finder-search">
           <Search size={16} />
           <input
@@ -236,7 +238,7 @@ export default function GiftFinder({
         )}
         <p className="text-xs text-slate-400">
           {readOnly
-            ? 'Their wishes. Store links use Gift Loop referral tags.'
+            ? 'Their wishes.'
             : 'Add gifts from the finder, or paste a product link. This stays on this device.'}
         </p>
         {!readOnly && (

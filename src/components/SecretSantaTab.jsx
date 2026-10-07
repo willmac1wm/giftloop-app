@@ -8,6 +8,9 @@ import { generateSecretSantaDraw } from '../utils/shuffle';
 import ExclusionModal from './ExclusionModal';
 import CreateExchangeWizard from './CreateExchangeWizard';
 import RevealLinksPanel from './RevealLinksPanel';
+import ExchangeWishLinks from './ExchangeWishLinks';
+import { organizerMatch, organizerPerson } from '../exchange/progress';
+import { buildRevealPayload } from '../utils/revealLink';
 
 export default function SecretSantaTab({
   event,
@@ -18,6 +21,8 @@ export default function SecretSantaTab({
 }) {
   const [showExclusions, setShowExclusions] = useState(false);
   const [drawError, setDrawError] = useState(null);
+  const [editingWishes, setEditingWishes] = useState(false);
+  const [wishDraft, setWishDraft] = useState('');
 
   // Form states for adding participant
   const [newName, setNewName] = useState('');
@@ -103,8 +108,58 @@ export default function SecretSantaTab({
     );
   }
 
+  const me = organizerPerson(event);
+  const saveMyWishes = (submitEvent) => {
+    submitEvent.preventDefault();
+    const lines = wishDraft.split('\n').map((line) => line.trim()).filter(Boolean);
+    onUpdateEvent({
+      ...event,
+      organizerWishes: wishDraft,
+      participants: (event.participants || []).map((person) => (
+        person.id === me?.id ? { ...person, wishlist: lines } : person
+      )),
+    });
+    setEditingWishes(false);
+  };
+
   return (
     <div className="space-y-6">
+      <header className="exchange-lead">
+        <p className="home-kicker">This exchange</p>
+        <h1>{event.title || 'Secret Santa'}</h1>
+        <p>
+          {[event.exchangeDate && `Gift date ${event.exchangeDate}`, event.budget && `Budget ${event.budget}`]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+        <p className="home-next">
+          Next: {event.matches ? 'Share each link, or read your recipient’s wishes.' : 'Set exclusions, then draw names.'}
+        </p>
+        <ExchangeWishLinks
+          event={event}
+          onOpenMine={() => {
+            setWishDraft((me?.wishlist || []).join('\n'));
+            setEditingWishes(true);
+          }}
+          onPreview={event.matches ? () => {
+            const match = organizerMatch(event);
+            if (match) onPreviewReveal(buildRevealPayload(event, match));
+          } : null}
+        />
+        {editingWishes && (
+          <form className="exchange-wish-panel" onSubmit={saveMyWishes}>
+            <label htmlFor="my-wish-list">Edit my wish list. One gift per line.</label>
+            <textarea
+              id="my-wish-list"
+              className="glass-input w-full"
+              rows={4}
+              value={wishDraft}
+              onChange={(e) => setWishDraft(e.target.value)}
+            />
+            <button type="submit" className="btn btn-primary text-sm">Save wish list</button>
+          </form>
+        )}
+      </header>
       {/* Event Overview & Settings Card */}
       <div className="glass-panel p-5 sm:p-6 border border-white/10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -396,11 +451,8 @@ export default function SecretSantaTab({
       {event.matches && (
         <div className="glass-panel-elevated p-6 border border-emerald-500/30 animate-fade-in space-y-4">
           <div className="pb-4 border-b border-white/10">
-            <span className="badge badge-emerald mb-1">
-              Draw Completed & Locked
-            </span>
             <h2 className="text-2xl font-bold font-heading text-white">
-              Shareable Secret Reveal Links
+              Share each link
             </h2>
           </div>
           <RevealLinksPanel event={event} onPreviewReveal={onPreviewReveal} onUpdateEvent={onUpdateEvent} />

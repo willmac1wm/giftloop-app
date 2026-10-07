@@ -4,6 +4,17 @@ import { api } from "../account/api";
 import { getStoredAffiliateConfig } from "../utils/affiliate";
 import { sound } from "../utils/audio";
 
+function ExchangeFields({ title, setTitle, budget, setBudget, eventDate, setEventDate, signupDeadline, setSignupDeadline }) {
+  return (
+    <div className="grid sm:grid-cols-2 gap-2">
+      <input className="glass-input" aria-label="Exchange title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+      <input className="glass-input" aria-label="Budget" value={budget} onChange={(e) => setBudget(e.target.value)} />
+      <input className="glass-input" aria-label="Exchange date" type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+      <input className="glass-input" aria-label="Signup deadline" type="date" value={signupDeadline} onChange={(e) => setSignupDeadline(e.target.value)} />
+    </div>
+  );
+}
+
 function Gate({ onNeedAccount }) {
   return (
     <section className="glass-panel p-6 max-w-xl mx-auto text-center">
@@ -19,7 +30,7 @@ function Gate({ onNeedAccount }) {
   );
 }
 
-export default function AdminScreen({ user, onNeedAccount, initialExchangeId = "" }) {
+export default function AdminScreen({ user, onNeedAccount, initialExchangeId = "", onOpenWishlist, onOpenRecipient }) {
   const [exchanges, setExchanges] = useState([]);
   const [selectedId, setSelectedId] = useState("");
   const [detail, setDetail] = useState(null);
@@ -169,16 +180,21 @@ export default function AdminScreen({ user, onNeedAccount, initialExchangeId = "
       </aside>
 
       <section className="space-y-4">
-        <form onSubmit={createExchange} className="glass-panel p-4 space-y-3">
-          <h3 className="font-semibold text-white">New exchange</h3>
-          <div className="grid sm:grid-cols-2 gap-2">
-            <input className="glass-input" aria-label="Exchange title" value={title} onChange={(e) => setTitle(e.target.value)} required />
-            <input className="glass-input" aria-label="Budget" value={budget} onChange={(e) => setBudget(e.target.value)} />
-            <input className="glass-input" aria-label="Exchange date" type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
-            <input className="glass-input" aria-label="Signup deadline" type="date" value={signupDeadline} onChange={(e) => setSignupDeadline(e.target.value)} />
-          </div>
-          <button className="btn btn-gold text-xs" type="submit" disabled={busy}>Create exchange</button>
-        </form>
+        {exchanges.length === 0 ? (
+          <form onSubmit={createExchange} className="glass-panel p-4 space-y-3">
+            <h3 className="font-semibold text-white">Create an exchange</h3>
+            <ExchangeFields title={title} setTitle={setTitle} budget={budget} setBudget={setBudget} eventDate={eventDate} setEventDate={setEventDate} signupDeadline={signupDeadline} setSignupDeadline={setSignupDeadline} />
+            <button className="btn btn-primary text-sm" type="submit" disabled={busy}>Create an exchange</button>
+          </form>
+        ) : (
+          <details className="rounded-xl border border-white/10 p-3">
+            <summary className="cursor-pointer text-sm text-white">Create another exchange</summary>
+            <form onSubmit={createExchange} className="space-y-3 mt-3">
+              <ExchangeFields title={title} setTitle={setTitle} budget={budget} setBudget={setBudget} eventDate={eventDate} setEventDate={setEventDate} signupDeadline={signupDeadline} setSignupDeadline={setSignupDeadline} />
+              <button className="btn btn-secondary text-xs" type="submit" disabled={busy}>Create an exchange</button>
+            </form>
+          </details>
+        )}
 
         {error && <p className="text-sm text-rose-300" role="alert">{error}</p>}
         {notice && <p className="text-sm text-emerald-300">{notice}</p>}
@@ -192,14 +208,20 @@ export default function AdminScreen({ user, onNeedAccount, initialExchangeId = "
                   {[exchange.eventDate && `Gift date ${exchange.eventDate}`, exchange.budget && `Budget ${exchange.budget}`].filter(Boolean).join(" · ") || "Add a gift date and budget when you create the exchange."}
                 </p>
                 <p className="text-xs text-slate-400">
-                  Next: {exchange.drawn ? "Tell people their recipient is ready." : exchange.drawReady ? "Draw names." : "Wait until at least two guests accept."}
+                  Next: {exchange.drawn ? "Reveal your recipient, or tell people their recipient is ready." : exchange.drawReady ? "Draw names." : "Wait until at least two guests accept."}
                   {exchange.signupDeadline ? ` Signup deadline ${exchange.signupDeadline}.` : ""}
                 </p>
               </div>
-              <div className="flex gap-2">
-                <button type="button" className="btn btn-primary text-xs" onClick={draw} disabled={busy || exchange.drawn || !exchange.drawReady}>
-                  <Shuffle size={14} /> Draw names
-                </button>
+              <div className="flex flex-wrap gap-2">
+                {exchange.drawn ? (
+                  <button type="button" className="btn btn-primary text-sm" onClick={() => onOpenRecipient?.(exchange.id)}>
+                    Reveal your recipient
+                  </button>
+                ) : (
+                  <button type="button" className="btn btn-primary text-xs" onClick={draw} disabled={busy || !exchange.drawReady}>
+                    <Shuffle size={14} /> Draw names
+                  </button>
+                )}
                 {exchange.drawn && (
                   <button
                     type="button"
@@ -213,6 +235,15 @@ export default function AdminScreen({ user, onNeedAccount, initialExchangeId = "
                   </button>
                 )}
               </div>
+            </div>
+
+            <div className="exchange-wishes">
+              <button type="button" className="btn btn-secondary text-sm" onClick={() => onOpenWishlist?.(exchange.id)}>
+                My wish list
+              </button>
+              <button type="button" className="btn btn-secondary text-sm" onClick={() => onOpenRecipient?.(exchange.id)}>
+                My recipient&apos;s wishes
+              </button>
             </div>
 
             <ul className="space-y-2">

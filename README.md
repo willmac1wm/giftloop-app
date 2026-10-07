@@ -14,7 +14,7 @@ These run in the browser with `npm run dev`. They do not need a database.
 - The draw is `src/utils/shuffle.js`. Nobody is paired with themselves, exclusions are directional, and the default is one giving circle. Two people who exclude each other cannot be drawn.
 - After the draw, each person gets a reveal link. **Email link** and **Text link** open the organizer’s own mail and messages apps. Copy, QR, print, WhatsApp, and the device share sheet are there too. Gift Loop does not send those messages.
 - The reveal page reads `?view=reveal&t=`. The token contains the giver, the receiver, and the wish list.
-- Shopping uses Gift Loop referral codes: Amazon, Walmart, Target, Bass Pro Shops, Cabela's, and Best Buy. **Affiliate Tags** accepts a code or a full affiliate link and stores it on this device. The deal banner, shopping-center doors, and gift finder use those codes.
+- Shopping uses Gift Loop referral codes: Amazon, Walmart, Target, Bass Pro Shops, Cabela's, and Best Buy. **Affiliate tags** are an administrator control. They accept a code or a full affiliate link and store it on this device. Members do not see that control. Shopping actions say when a link may include a referral code. The deal banner, shopping-center doors, and gift finder use those codes.
 - The phone browser can use the site. `index.html` has a web manifest and Apple web-app tags. That is not an App Store build.
 
 ## Partially connected

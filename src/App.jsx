@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Navbar';
 import SecretRevealView from './components/SecretRevealView';
 import IosInstallModal from './components/IosInstallModal';
@@ -24,6 +24,8 @@ import {
 import { decodeSecretPayload } from './utils/crypto';
 import { sound } from './utils/audio';
 import { staffAccess } from './account/staff';
+import { NEXT_ACTION_LABEL, deviceNextAction, organizerMatch } from './exchange/progress';
+import { buildRevealPayload } from './utils/revealLink';
 
 function entryFromLocation() {
   try {
@@ -46,6 +48,10 @@ export default function App() {
   const [snowEnabled, setSnowEnabled] = useState(true);
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [showAffiliateModal, setShowAffiliateModal] = useState(false);
+  const [savedFocus, setSavedFocus] = useState(null);
+  const [reduceMotion, setReduceMotion] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  ));
   const [user, setUser] = useState(null);
   const [area, setArea] = useState(() => {
     const start = entryFromLocation();
@@ -139,6 +145,22 @@ export default function App() {
   }, [exchange]);
 
   useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const apply = () => setReduceMotion(media.matches);
+    apply();
+    media.addEventListener('change', apply);
+    return () => media.removeEventListener('change', apply);
+  }, []);
+
+  const rememberSaved = useCallback((next) => {
+    setSavedFocus((current) => {
+      if (!next && !current) return current;
+      if (next && current && next.id === current.id && next.drawn === current.drawn) return current;
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
     try {
       localStorage.setItem('giftloop_whiteelephant_v2', JSON.stringify(whiteElephant));
     } catch (e) {
@@ -152,6 +174,43 @@ export default function App() {
       setExchange(sampleExchange());
       localStorage.removeItem(EXCHANGE_STORAGE_KEY);
     }
+  };
+
+  const deviceKind = deviceNextAction(exchange);
+  const headerKind = deviceKind === 'create' && savedFocus
+    ? (savedFocus.drawn ? 'reveal' : 'continue')
+    : deviceKind;
+
+  const openSaved = (id, drawn) => {
+    sound.playClick();
+    if (drawn) {
+      setAssignmentExchangeId(id);
+      setAfterAccount('assignment');
+      setArea('assignment');
+      return;
+    }
+    setManageExchangeId(id);
+    setArea('admin');
+  };
+
+  const runPrimary = () => {
+    if (deviceKind === 'reveal') {
+      const match = organizerMatch(exchange);
+      sound.playClick();
+      setArea('exchange');
+      if (match) setPreviewPayload(buildRevealPayload(exchange, match));
+      return;
+    }
+    if (deviceKind === 'continue') {
+      sound.playClick();
+      setArea('exchange');
+      return;
+    }
+    if (savedFocus) {
+      openSaved(savedFocus.id, savedFocus.drawn);
+      return;
+    }
+    openCreate();
   };
 
   const openCreate = () => {
@@ -196,7 +255,7 @@ export default function App() {
   if (urlPayload) {
     return (
       <div className="min-h-screen text-slate-100 relative">
-        {snowEnabled && <Snowfall />}
+        {snowEnabled && !reduceMotion && <Snowfall />}
         <SecretRevealView payload={urlPayload} />
       </div>
     );
@@ -206,7 +265,7 @@ export default function App() {
   if (previewPayload) {
     return (
       <div className="min-h-screen text-slate-100 relative">
-        {snowEnabled && <Snowfall />}
+        {snowEnabled && !reduceMotion && <Snowfall />}
         <SecretRevealView
           payload={previewPayload}
           onBackToOrganizer={() => setPreviewPayload(null)}
@@ -217,18 +276,21 @@ export default function App() {
 
   return (
     <div className="min-h-screen text-slate-100 relative flex flex-col">
-      {snowEnabled && <Snowfall />}
+      {snowEnabled && !reduceMotion && <Snowfall />}
 
       <Navbar
         soundEnabled={soundEnabled}
         setSoundEnabled={setSoundEnabled}
         snowEnabled={snowEnabled}
         setSnowEnabled={setSnowEnabled}
+        reduceMotion={reduceMotion}
         onResetDemoData={handleResetDemoData}
         onOpenInstallModal={() => setShowInstallModal(true)}
         onOpenAffiliateModal={() => setShowAffiliateModal(true)}
         user={user}
         area={area}
+        primaryLabel={NEXT_ACTION_LABEL[headerKind]}
+        onPrimaryAction={runPrimary}
         onOpenHome={() => setArea('home')}
         onCreateExchange={openCreate}
         onOpenAccount={() => {
@@ -267,6 +329,10 @@ export default function App() {
               setAfterAccount('assignment');
               setArea('account');
             }}
+            onOpenWishlist={() => {
+              setManageExchangeId(assignmentExchangeId);
+              setArea('wishlist');
+            }}
           />
         )}
         {area === 'account' && (
@@ -289,6 +355,7 @@ export default function App() {
             staff={staffAccess(user)}
             onOpenSupport={() => setArea('support')}
             onOpenMerchants={() => setArea('merchants')}
+            onOpenAffiliate={staffAccess(user) === 'admin' ? () => setShowAffiliateModal(true) : null}
           />
         )}
         {area === 'home' && (
@@ -297,10 +364,10 @@ export default function App() {
             user={user}
             onCreate={openCreate}
             onContinue={() => setArea('exchange')}
-            onOpenManage={(id) => {
-              setManageExchangeId(id);
-              setArea('admin');
-            }}
+            onReveal={runPrimary}
+            onOpenManage={(id) => openSaved(id, false)}
+            onRevealSaved={(id) => openSaved(id, true)}
+            onSavedFocus={rememberSaved}
           />
         )}
         {area === 'admin' && (
@@ -312,12 +379,18 @@ export default function App() {
               setAfterAccount('admin');
               setArea('account');
             }}
+            onOpenWishlist={(id) => {
+              setManageExchangeId(id);
+              setArea('wishlist');
+            }}
+            onOpenRecipient={(id) => openSaved(id, true)}
           />
         )}
         {area === 'wishlist' && (
           <WishListScreen
             key={user?.id || 'signed-out'}
             user={user}
+            exchangeId={manageExchangeId}
             onNeedAccount={() => {
               setAfterAccount('wishlist');
               setArea('account');
@@ -346,6 +419,7 @@ export default function App() {
               setAfterAccount('merchants');
               setArea('account');
             }}
+            onOpenAffiliate={staffAccess(user) === 'admin' ? () => setShowAffiliateModal(true) : null}
           />
         )}
         {area === 'exchange' && (

@@ -13,7 +13,7 @@ function Gate({ onNeedAccount }) {
   );
 }
 
-export default function MerchantScreen({ user, onNeedAccount }) {
+export default function MerchantScreen({ user, onNeedAccount, onOpenAffiliate }) {
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
   const [draft, setDraft] = useState({ id: "", name: "", domains: "", affiliateParam: "", configKey: "", countries: "", enabled: true });
@@ -29,7 +29,10 @@ export default function MerchantScreen({ user, onNeedAccount }) {
   return (
     <section className="glass-panel p-5 max-w-2xl mx-auto space-y-4">
       <h2 className="text-xl font-bold text-white">Platform merchants</h2>
-      <p className="text-xs text-slate-400">Domains decide which links can be tagged. The affiliate value itself is not stored here. This is separate from Manage exchange.</p>
+      <p className="text-xs text-slate-400">Domains decide which links can be tagged. The affiliate value itself is not stored here. This is separate from Manage exchange. Affiliate tags are an administrator control.</p>
+      {onOpenAffiliate && (
+        <button type="button" className="btn btn-secondary text-xs" onClick={onOpenAffiliate}>Affiliate tags</button>
+      )}
       {error && <p className="text-sm text-rose-300" role="alert">{error}</p>}
       <button type="button" className="btn btn-secondary text-xs" onClick={load}>Load merchant rules</button>
       <ul className="text-sm text-slate-200 space-y-2">

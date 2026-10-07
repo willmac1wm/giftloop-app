@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ExternalLink, ShoppingBag } from 'lucide-react';
 import { SUPPORTED_STORES, applyAffiliateTag, detectStore, generateStoreSearchUrl } from '../utils/affiliate';
 import { ideasWithinBudget, shopQuery } from '../utils/shop';
+import ShopDisclosure from './ShopDisclosure';
 
 const STORE_CLASS = {
   amazon: 'bg-[#ff9900]/15 text-[#fbbf24] border-[#ff9900]/30',
@@ -63,9 +64,9 @@ export default function ShopForMatch({
         </h3>
         <p className="text-xs text-slate-300 mt-1">
           {listTitle ? `${listTitle}. ` : ''}
-          These open the store search with Gift Loop referral links
-          {budget ? ` and stay near the ${budget} budget` : ''}.
+          {budget ? `Stay near the ${budget} budget.` : 'Search a store, or open a wish.'}
         </p>
+        <ShopDisclosure />
       </div>
 
       <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block" htmlFor="shop-query">

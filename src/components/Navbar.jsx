@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Gift, Menu, Volume2, VolumeX, Snowflake, RotateCcw, Smartphone, Tag, X } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Gift, Menu, Volume2, VolumeX, Snowflake, RotateCcw, X } from "lucide-react";
 import { sound } from "../utils/audio";
 import { staffAccess } from "../account/staff";
 
@@ -8,11 +8,14 @@ export default function Navbar({
   setSoundEnabled,
   snowEnabled,
   setSnowEnabled,
+  reduceMotion,
   onResetDemoData,
   onOpenInstallModal,
   onOpenAffiliateModal,
   user,
   area,
+  primaryLabel,
+  onPrimaryAction,
   onOpenHome,
   onCreateExchange,
   onOpenAccount,
@@ -23,7 +26,10 @@ export default function Navbar({
   onOpenMerchants,
 }) {
   const [open, setOpen] = useState(false);
+  const headerRef = useRef(null);
+  const menuButtonRef = useRef(null);
   const staff = staffAccess(user);
+  const showCreateInMenu = primaryLabel !== "Create an exchange";
 
   const toggleSound = () => {
     const next = !soundEnabled;
@@ -38,8 +44,29 @@ export default function Navbar({
     action();
   };
 
+  useEffect(() => {
+    if (!open) return undefined;
+    const menu = headerRef.current?.querySelector("#site-menu button");
+    menu?.focus();
+    const onKey = (event) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    const onPointer = (event) => {
+      if (!headerRef.current?.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onPointer);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onPointer);
+    };
+  }, [open]);
+
   return (
-    <header className="site-header">
+    <header className="site-header" ref={headerRef}>
       <div className="site-header-bar">
         <button type="button" className="brand-button" onClick={() => go(onOpenHome)}>
           <span className="brand-mark" aria-hidden="true">
@@ -52,10 +79,11 @@ export default function Navbar({
         </button>
 
         <div className="site-header-actions">
-          <button type="button" className="btn btn-primary text-sm" onClick={() => go(onCreateExchange)}>
-            Create an exchange
+          <button type="button" className="btn btn-primary text-sm" onClick={() => go(onPrimaryAction)}>
+            {primaryLabel}
           </button>
           <button
+            ref={menuButtonRef}
             type="button"
             className="btn btn-secondary text-sm"
             aria-expanded={open}
@@ -71,21 +99,23 @@ export default function Navbar({
       {open && (
         <nav id="site-menu" className="site-menu" aria-label="More options">
           <button type="button" className={area === "home" ? "is-current" : ""} onClick={() => go(onOpenHome)}>Home</button>
+          {showCreateInMenu && (
+            <button type="button" onClick={() => go(onCreateExchange)}>Create another exchange</button>
+          )}
           <button type="button" className={area === "wishlist" ? "is-current" : ""} onClick={() => go(onOpenWishlist)}>Wish list</button>
           <button type="button" className={area === "white-elephant" ? "is-current" : ""} onClick={() => go(onOpenWhiteElephant)}>White Elephant</button>
           <button type="button" className={area === "admin" ? "is-current" : ""} onClick={() => go(onOpenManage)}>Manage exchange</button>
           <button type="button" className={area === "account" ? "is-current" : ""} onClick={() => go(onOpenAccount)}>
-            {user?.email ? "Account" : "Sign in"}
+            Account and support
           </button>
-          <button type="button" onClick={() => go(onOpenAffiliateModal)}>Affiliate tags</button>
           <button type="button" onClick={() => go(onOpenInstallModal)}>Add to iPhone</button>
           <button type="button" onClick={toggleSound}>
             {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
             {soundEnabled ? "Sound on" : "Sound off"}
           </button>
-          <button type="button" onClick={() => setSnowEnabled(!snowEnabled)}>
+          <button type="button" onClick={() => setSnowEnabled(!snowEnabled)} disabled={reduceMotion}>
             <Snowflake size={14} />
-            {snowEnabled ? "Snow on" : "Snow off"}
+            {reduceMotion ? "Snow off for reduced motion" : snowEnabled ? "Snow on" : "Snow off"}
           </button>
           <button type="button" onClick={() => go(onResetDemoData)}>
             <RotateCcw size={14} />
@@ -101,9 +131,9 @@ export default function Navbar({
               Platform merchants
             </button>
           )}
-          <p className="site-menu-note">
-            <Smartphone size={14} /> <Tag size={14} /> Affiliate tags and the iPhone shortcut stay in this menu.
-          </p>
+          {staff === "admin" && (
+            <button type="button" onClick={() => go(onOpenAffiliateModal)}>Affiliate tags</button>
+          )}
         </nav>
       )}
     </header>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Gift } from "lucide-react";
 import { api } from "../account/api";
 import DealBanner from "./DealBanner";
+import { NEXT_ACTION_LABEL, deviceNextAction } from "../exchange/progress";
 
 const NEXT_STEP = {
   names: "Add the people in your group",
@@ -13,9 +13,23 @@ const NEXT_STEP = {
   share: "Share each person's link",
 };
 
-export default function HomeScreen({ exchange, user, onCreate, onContinue, onOpenManage }) {
+export default function HomeScreen({
+  exchange,
+  user,
+  onCreate,
+  onContinue,
+  onReveal,
+  onOpenManage,
+  onRevealSaved,
+  onSavedFocus,
+}) {
   const [saved, setSaved] = useState([]);
   const [savedNote, setSavedNote] = useState("");
+  const deviceKind = deviceNextAction(exchange);
+  const step = exchange?.wizardStep || "start";
+  const next = deviceKind === "reveal"
+    ? "See who you are giving to, and read their wishes."
+    : (NEXT_STEP[step] || "Continue this exchange");
 
   useEffect(() => {
     if (!user) {
@@ -36,23 +50,22 @@ export default function HomeScreen({ exchange, user, onCreate, onContinue, onOpe
     };
   }, [user]);
 
-  const step = exchange?.wizardStep || "start";
-  const inProgress = step !== "start" || Boolean(exchange?.title) || Boolean(exchange?.matches);
-  const next = NEXT_STEP[step] || "Continue this exchange";
+  const featuredSaved = deviceKind === "create" ? saved[0] : null;
+
+  useEffect(() => {
+    if (!onSavedFocus) return;
+    if (deviceKind !== "create" || !featuredSaved) onSavedFocus(null);
+    else onSavedFocus({ id: featuredSaved.id, drawn: featuredSaved.drawn, title: featuredSaved.title });
+  }, [deviceKind, featuredSaved, onSavedFocus]);
+
+  const returning = deviceKind !== "create" || Boolean(featuredSaved);
 
   return (
     <section className="home-screen">
       <p className="home-kicker">Christmas Secret Santa</p>
       <h1>Your exchanges</h1>
-      <p className="home-lede">
-        Create a group, invite people, and draw names. You can start on this device with no account.
-      </p>
-      <button type="button" className="btn btn-primary text-base px-5 py-3" onClick={onCreate}>
-        <Gift size={18} />
-        Create an exchange
-      </button>
 
-      {inProgress && (
+      {deviceKind !== "create" && (
         <article className="home-card">
           <h2>{exchange.title || "Secret Santa on this device"}</h2>
           <p>
@@ -61,24 +74,63 @@ export default function HomeScreen({ exchange, user, onCreate, onContinue, onOpe
               .join(" · ") || "Date and budget come in a later step."}
           </p>
           <p className="home-next">Next: {next}</p>
-          <button type="button" className="btn btn-secondary text-sm" onClick={onContinue}>
-            Continue
+          <button
+            type="button"
+            className="btn btn-primary text-base px-5 py-3"
+            onClick={deviceKind === "reveal" ? onReveal : onContinue}
+          >
+            {NEXT_ACTION_LABEL[deviceKind]}
           </button>
         </article>
       )}
 
-      {user && saved.length > 0 && (
+      {featuredSaved && (
+        <article className="home-card">
+          <h2>{featuredSaved.title}</h2>
+          <p>
+            {featuredSaved.eventDate ? `Gift date ${featuredSaved.eventDate}` : "No gift date yet"}
+            {featuredSaved.drawn ? " · Names are drawn" : ""}
+          </p>
+          <p className="home-next">
+            Next: {featuredSaved.drawn ? "See who you are giving to." : "Invite people, set exclusions, then draw names."}
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary text-base px-5 py-3"
+            onClick={() => (featuredSaved.drawn ? onRevealSaved(featuredSaved.id) : onOpenManage(featuredSaved.id))}
+          >
+            {featuredSaved.drawn ? "Reveal your recipient" : "Continue your exchange"}
+          </button>
+        </article>
+      )}
+
+      {!returning && (
+        <>
+          <p className="home-lede">
+            Create a group, invite people, and draw names. You can start on this device with no account.
+          </p>
+          <button type="button" className="btn btn-primary text-base px-5 py-3" onClick={onCreate}>
+            Create an exchange
+          </button>
+        </>
+      )}
+
+      {user && saved.length > (featuredSaved ? 1 : 0) && (
         <div className="home-saved">
           <h2>Saved exchanges</h2>
           <ul>
-            {saved.map((item) => (
+            {saved.filter((item) => item.id !== featuredSaved?.id).map((item) => (
               <li key={item.id}>
                 <div>
                   <strong>{item.title}</strong>
                   <span>{item.eventDate ? `Gift date ${item.eventDate}` : "No gift date yet"}{item.drawn ? " · Names are drawn" : ""}</span>
                 </div>
-                <button type="button" className="btn btn-secondary text-xs" onClick={() => onOpenManage(item.id)}>
-                  Open
+                <button
+                  type="button"
+                  className="btn btn-secondary text-xs"
+                  onClick={() => (item.drawn ? onRevealSaved(item.id) : onOpenManage(item.id))}
+                >
+                  {item.drawn ? "Reveal your recipient" : "Continue"}
                 </button>
               </li>
             ))}
@@ -87,6 +139,12 @@ export default function HomeScreen({ exchange, user, onCreate, onContinue, onOpe
       )}
       {savedNote && <p className="home-note">{savedNote}</p>}
 
+      {returning && (
+        <button type="button" className="home-quiet" onClick={onCreate}>
+          Create another exchange
+        </button>
+      )}
+
       <p className="home-note">
         Have an invitation? Open the link from your email or text. A private invitation works only for the invited account. An open join link says when anyone with it can ask to join.
       </p>
@@ -94,7 +152,7 @@ export default function HomeScreen({ exchange, user, onCreate, onContinue, onOpe
       <details className="home-stores">
         <summary>Holiday stores</summary>
         <p className="home-note">
-          Store buttons can include a referral code. Sample codes are not an approved affiliate account. Paste your own codes from the menu under Affiliate tags.
+          Store buttons below can include a referral code. Sample codes are not an approved affiliate account.
         </p>
         <DealBanner />
       </details>

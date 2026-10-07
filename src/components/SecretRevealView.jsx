@@ -64,7 +64,7 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
           className="fixed top-5 left-5 z-20 btn btn-secondary text-xs py-2 px-3.5 backdrop-blur-md"
         >
           <ArrowLeft size={16} />
-          Back to Organizer Hub
+          Back to the exchange
         </button>
       )}
 
@@ -151,6 +151,7 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
           </div>
 
           <div className="py-5 space-y-4">
+            <h3 className="text-base font-semibold text-white text-left">My recipient&apos;s wishes</h3>
             <GiftFinder
               readOnly
               personName={receiverName}
