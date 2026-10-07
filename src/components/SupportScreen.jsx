@@ -13,7 +13,7 @@ function Gate({ onNeedAccount }) {
   );
 }
 
-export default function SupportScreen({ user, onNeedAccount }) {
+export default function SupportScreen({ user, onNeedAccount, staff = "" }) {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState("");
@@ -26,8 +26,8 @@ export default function SupportScreen({ user, onNeedAccount }) {
 
   return (
     <section className="glass-panel p-5 max-w-2xl mx-auto space-y-4">
-      <h2 className="text-xl font-bold text-white">Support</h2>
-      <p className="text-xs text-slate-400">This screen is separate from the organizer dashboard. It does not show who anyone is giving to.</p>
+      <h2 className="text-xl font-bold text-white">{staff ? "Support tools" : "Support"}</h2>
+      <p className="text-xs text-slate-400">This is separate from Manage exchange. It does not show who anyone is giving to.</p>
       {error && <p className="text-sm text-rose-300" role="alert">{error}</p>}
       {notice && <p className="text-sm text-emerald-300">{notice}</p>}
       <form
@@ -47,6 +47,8 @@ export default function SupportScreen({ user, onNeedAccount }) {
         <textarea className="glass-input w-full min-h-24" aria-label="Ticket message" placeholder="What happened?" value={message} onChange={(e) => setMessage(e.target.value)} required />
         <button className="btn btn-gold text-xs" type="submit">Open ticket</button>
       </form>
+      {staff && (
+      <>
       <form
         className="space-y-2"
         onSubmit={(event) => {
@@ -84,6 +86,8 @@ export default function SupportScreen({ user, onNeedAccount }) {
           <li key={ticket.id}>{ticket.status}: {ticket.subject} · {ticket.requesterEmail}</li>
         ))}
       </ul>
+      </>
+      )}
     </section>
   );
 }

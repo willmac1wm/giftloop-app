@@ -71,21 +71,9 @@ export default function RevealLinksPanel({ event, onPreviewReveal, onUpdateEvent
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <p className="text-sm text-slate-300 max-w-xl">
-          Email and text are the way to send each private link. Your own mail and messages apps send them. Gift Loop never sees the message.
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={handleCopyAllLinks} className="btn btn-secondary text-xs py-2 px-3">
-            {copiedAll ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-            {copiedAll ? 'All Copied!' : 'Copy All Links'}
-          </button>
-          <button type="button" onClick={() => setShowPrintModal(true)} className="btn btn-gold text-xs py-2 px-3">
-            <Printer size={14} />
-            Print Slips
-          </button>
-        </div>
-      </div>
+      <p className="text-sm text-slate-300">
+        Each link is that person's reveal. Anyone who receives it can open it, and the page includes their match. These buttons open your own mail, messages, or print dialog. GiftLoop does not send them.
+      </p>
 
       <div className="space-y-3">
         {event.matches.map((match) => {
@@ -130,67 +118,66 @@ export default function RevealLinksPanel({ event, onPreviewReveal, onUpdateEvent
                   autoComplete="off"
                 />
               </div>
-              <div className="flex flex-wrap gap-2">
-                <a className="btn btn-primary text-sm" href={mailLink}>
-                  <Mail size={15} />
-                  Email link
-                </a>
-                <a className="btn btn-text text-sm" href={textLink}>
-                  <Send size={15} />
-                  Text link
-                </a>
-              </div>
               {!contact.email && !contact.phone && (
                 <p className="text-xs text-slate-400">
-                  Add an email or mobile so the button opens already addressed to {match.giver.name}.
+                  Add an email or mobile so Email and Text open already addressed to {match.giver.name}.
                 </p>
               )}
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button type="button" onClick={() => handleCopyLink(match)} className="btn btn-secondary text-xs py-1.5 px-2.5">
-                  {isCopied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
-                  {isCopied ? 'Copied' : 'Copy link'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary text-xs py-1.5 px-2.5"
-                  onClick={() => {
-                    const text = encodeURIComponent(whatsAppText(event, match.giver.name, url));
-                    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
-                  }}
-                >
-                  <MessageCircle size={13} />
-                  WhatsApp
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary text-xs py-1.5 px-2.5"
-                  onClick={() => handleNativeShare(match)}
-                >
-                  <Share2 size={13} />
-                  Share
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary text-xs py-1.5 px-2.5"
-                  onClick={() => {
-                    sound.playClick();
-                    setActiveQR({ participantName: match.giver.name, url });
-                  }}
-                >
-                  <QrCode size={13} />
-                  QR
-                </button>
-              </div>
-              <input
-                type="text"
-                readOnly
-                value={url}
-                className="glass-input text-xs py-1.5 px-2.5 font-mono text-slate-300 w-full"
-                aria-label={`Reveal link for ${match.giver.name}`}
-              />
+              <details className="share-menu">
+                <summary>
+                  <Share2 size={15} />
+                  Share {match.giver.name}&apos;s link
+                </summary>
+                <div className="share-menu-list">
+                  <a href={mailLink}><Mail size={15} /> Email — opens your mail app</a>
+                  <a href={textLink}><Send size={15} /> Text — opens your messages app</a>
+                  <button type="button" onClick={() => handleCopyLink(match)}>
+                    {isCopied ? <Check size={15} /> : <Copy size={15} />}
+                    {isCopied ? 'Link copied' : 'Copy link'}
+                  </button>
+                  <button type="button" onClick={() => handleNativeShare(match)}>
+                    <Share2 size={15} /> Device share sheet
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const text = encodeURIComponent(whatsAppText(event, match.giver.name, url));
+                      window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+                    }}
+                  >
+                    <MessageCircle size={15} /> WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      setActiveQR({ participantName: match.giver.name, url });
+                    }}
+                  >
+                    <QrCode size={15} /> QR code
+                  </button>
+                  <input
+                    type="text"
+                    readOnly
+                    value={url}
+                    className="glass-input text-xs py-1.5 px-2.5 font-mono text-slate-300 w-full"
+                    aria-label={`Reveal link for ${match.giver.name}`}
+                  />
+                </div>
+              </details>
             </article>
           );
         })}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={handleCopyAllLinks} className="btn btn-secondary text-xs">
+          {copiedAll ? <Check size={14} /> : <Copy size={14} />}
+          {copiedAll ? 'All links copied' : 'Copy all links'}
+        </button>
+        <button type="button" onClick={() => setShowPrintModal(true)} className="btn btn-secondary text-xs">
+          <Printer size={14} />
+          Print
+        </button>
       </div>
 
       {activeQR && (

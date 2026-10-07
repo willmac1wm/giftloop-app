@@ -1,6 +1,7 @@
-import React from 'react';
-import { Gift, Volume2, VolumeX, Snowflake, RotateCcw, Smartphone, Tag, KeyRound, Shield, List } from 'lucide-react';
-import { sound } from '../utils/audio';
+import React, { useState } from "react";
+import { Gift, Menu, Volume2, VolumeX, Snowflake, RotateCcw, Smartphone, Tag, X } from "lucide-react";
+import { sound } from "../utils/audio";
+import { staffAccess } from "../account/staff";
 
 export default function Navbar({
   soundEnabled,
@@ -12,14 +13,18 @@ export default function Navbar({
   onOpenAffiliateModal,
   user,
   area,
+  onOpenHome,
+  onCreateExchange,
   onOpenAccount,
-  onOpenAdmin,
+  onOpenManage,
   onOpenWishlist,
-  onOpenExchange,
   onOpenWhiteElephant,
   onOpenSupport,
   onOpenMerchants,
 }) {
+  const [open, setOpen] = useState(false);
+  const staff = staffAccess(user);
+
   const toggleSound = () => {
     const next = !soundEnabled;
     sound.enabled = next;
@@ -27,169 +32,80 @@ export default function Navbar({
     if (next) sound.playClick();
   };
 
+  const go = (action) => {
+    sound.playClick();
+    setOpen(false);
+    action();
+  };
+
   return (
-    <header className="glass-panel border-x-0 border-t-0 rounded-none sticky top-0 z-40 px-4 sm:px-8 py-3.5 backdrop-blur-xl border-b border-white/10">
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-        {/* Brand */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 text-white flex items-center justify-center shadow-lg shadow-rose-500/25">
-            <Gift size={22} className="animate-gift-float" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-xl font-heading tracking-tight text-white">
-                GiftLoop
-              </span>
-              <span className="badge badge-emerald text-[9px] py-0.5 px-1.5">Secret Santa</span>
-            </div>
-            <p className="text-[11px] text-slate-400 font-medium">
-              Draw names, then email or text the links
-            </p>
-          </div>
-        </div>
+    <header className="site-header">
+      <div className="site-header-bar">
+        <button type="button" className="brand-button" onClick={() => go(onOpenHome)}>
+          <span className="brand-mark" aria-hidden="true">
+            <Gift size={20} />
+          </span>
+          <span>
+            <span className="brand-name">GiftLoop</span>
+            <span className="brand-tag">Christmas Secret Santa</span>
+          </span>
+        </button>
 
-        {/* Utility Toggles */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={toggleSound}
-            className={`p-2 rounded-lg border transition-colors ${
-              soundEnabled
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                : 'bg-white/5 text-slate-500 border-white/5'
-            }`}
-            title={soundEnabled ? 'Mute Sound FX' : 'Enable Sound FX'}
-          >
-            {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+        <div className="site-header-actions">
+          <button type="button" className="btn btn-primary text-sm" onClick={() => go(onCreateExchange)}>
+            Create an exchange
           </button>
-
           <button
-            onClick={() => setSnowEnabled(!snowEnabled)}
-            className={`p-2 rounded-lg border transition-colors ${
-              snowEnabled
-                ? 'bg-sky-500/10 text-sky-400 border-sky-500/30'
-                : 'bg-white/5 text-slate-500 border-white/5'
-            }`}
-            title={snowEnabled ? 'Disable Snowfall' : 'Enable Snowfall'}
+            type="button"
+            className="btn btn-secondary text-sm"
+            aria-expanded={open}
+            aria-controls="site-menu"
+            onClick={() => setOpen((value) => !value)}
           >
-            <Snowflake size={16} />
-          </button>
-
-          <button
-            onClick={() => {
-              sound.playClick();
-              onOpenExchange();
-            }}
-            className={`btn btn-secondary text-xs py-2 px-2.5 ${area === 'exchange' ? 'text-white' : ''}`}
-            title="Quick draw on this device. A reveal link from this draw can be opened by anyone who receives it."
-          >
-            <Gift size={13} />
-            <span className="hidden md:inline">Quick draw</span>
-          </button>
-
-          <button
-            onClick={() => {
-              sound.playClick();
-              onOpenWhiteElephant && onOpenWhiteElephant();
-            }}
-            className={`btn btn-secondary text-xs py-2 px-2.5 ${area === 'white-elephant' ? 'text-white' : ''}`}
-            title="White Elephant on this device"
-          >
-            <Gift size={13} />
-            <span className="hidden lg:inline">White Elephant</span>
-          </button>
-
-          <button
-            onClick={() => {
-              sound.playClick();
-              onOpenAdmin();
-            }}
-            className={`btn btn-secondary text-xs py-2 px-2.5 ${area === 'admin' ? 'text-amber-300' : ''}`}
-            title="Organizer admin"
-          >
-            <Shield size={13} />
-            <span className="hidden md:inline">Admin</span>
-          </button>
-
-          <button
-            onClick={() => {
-              sound.playClick();
-              onOpenWishlist();
-            }}
-            className={`btn btn-secondary text-xs py-2 px-2.5 ${area === 'wishlist' ? 'text-rose-300' : ''}`}
-            title="Your wish list"
-          >
-            <List size={13} />
-            <span className="hidden md:inline">My list</span>
-          </button>
-
-          <button
-            onClick={() => {
-              sound.playClick();
-              onOpenAccount();
-            }}
-            className={`btn btn-secondary text-xs py-2 px-2.5 ${area === 'account' ? 'text-sky-300' : ''}`}
-            title={user?.email || 'Sign in'}
-          >
-            <KeyRound size={13} />
-            <span className="hidden lg:inline">{user?.email ? 'Account' : 'Sign in'}</span>
-          </button>
-
-          <button
-            onClick={() => {
-              sound.playClick();
-              onOpenSupport && onOpenSupport();
-            }}
-            className={`btn btn-secondary text-xs py-2 px-2.5 ${area === 'support' ? 'text-white' : ''}`}
-            title="Support tools. Assignments stay hidden."
-          >
-            <span className="hidden lg:inline">Support</span>
-          </button>
-
-          <button
-            onClick={() => {
-              sound.playClick();
-              onOpenMerchants && onOpenMerchants();
-            }}
-            className={`btn btn-secondary text-xs py-2 px-2.5 ${area === 'merchants' ? 'text-white' : ''}`}
-            title="Merchant settings for administrators"
-          >
-            <span className="hidden lg:inline">Merchants</span>
-          </button>
-
-          <button
-            onClick={() => {
-              sound.playClick();
-              onOpenAffiliateModal && onOpenAffiliateModal();
-            }}
-            className="btn btn-secondary text-xs py-2 px-2.5 text-amber-400 hover:text-white"
-            title="Paste Amazon, Walmart, Target, Bass Pro, Cabela's, and Best Buy affiliate codes"
-          >
-            <Tag size={13} />
-            <span className="hidden md:inline">Affiliate Tags</span>
-          </button>
-
-          <button
-            onClick={() => {
-              sound.playClick();
-              onOpenInstallModal && onOpenInstallModal();
-            }}
-            className="btn btn-secondary text-xs py-2 px-2.5 text-sky-400 hover:text-white"
-            title="Install on iPhone / iOS"
-          >
-            <Smartphone size={13} />
-            <span className="hidden md:inline">iPhone App</span>
-          </button>
-
-          <button
-            onClick={onResetDemoData}
-            className="btn btn-secondary text-xs py-2 px-2.5"
-            title="Reset to sample party data"
-          >
-            <RotateCcw size={13} />
-            <span className="hidden sm:inline">Reset Demo</span>
+            {open ? <X size={16} /> : <Menu size={16} />}
+            Menu
           </button>
         </div>
       </div>
+
+      {open && (
+        <nav id="site-menu" className="site-menu" aria-label="More options">
+          <button type="button" className={area === "home" ? "is-current" : ""} onClick={() => go(onOpenHome)}>Home</button>
+          <button type="button" className={area === "wishlist" ? "is-current" : ""} onClick={() => go(onOpenWishlist)}>Wish list</button>
+          <button type="button" className={area === "white-elephant" ? "is-current" : ""} onClick={() => go(onOpenWhiteElephant)}>White Elephant</button>
+          <button type="button" className={area === "admin" ? "is-current" : ""} onClick={() => go(onOpenManage)}>Manage exchange</button>
+          <button type="button" className={area === "account" ? "is-current" : ""} onClick={() => go(onOpenAccount)}>
+            {user?.email ? "Account" : "Sign in"}
+          </button>
+          <button type="button" onClick={() => go(onOpenAffiliateModal)}>Affiliate tags</button>
+          <button type="button" onClick={() => go(onOpenInstallModal)}>Add to iPhone</button>
+          <button type="button" onClick={toggleSound}>
+            {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+            {soundEnabled ? "Sound on" : "Sound off"}
+          </button>
+          <button type="button" onClick={() => setSnowEnabled(!snowEnabled)}>
+            <Snowflake size={14} />
+            {snowEnabled ? "Snow on" : "Snow off"}
+          </button>
+          <button type="button" onClick={() => go(onResetDemoData)}>
+            <RotateCcw size={14} />
+            Load sample group
+          </button>
+          {staff && (
+            <button type="button" className={area === "support" ? "is-current" : ""} onClick={() => go(onOpenSupport)}>
+              Support tools
+            </button>
+          )}
+          {staff === "admin" && (
+            <button type="button" className={area === "merchants" ? "is-current" : ""} onClick={() => go(onOpenMerchants)}>
+              Platform merchants
+            </button>
+          )}
+          <p className="site-menu-note">
+            <Smartphone size={14} /> <Tag size={14} /> Affiliate tags and the iPhone shortcut stay in this menu.
+          </p>
+        </nav>
+      )}
     </header>
   );
 }

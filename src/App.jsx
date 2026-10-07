@@ -3,8 +3,8 @@ import Navbar from './components/Navbar';
 import SecretRevealView from './components/SecretRevealView';
 import IosInstallModal from './components/IosInstallModal';
 import AffiliateSettingsModal from './components/AffiliateSettingsModal';
-import DealBanner from './components/DealBanner';
 import AccountScreen from './components/AccountScreen';
+import HomeScreen from './components/HomeScreen';
 import AdminScreen from './components/AdminScreen';
 import WishListScreen from './components/WishListScreen';
 import InviteScreen from './components/InviteScreen';
@@ -23,6 +23,7 @@ import {
 } from './games/secretSanta';
 import { decodeSecretPayload } from './utils/crypto';
 import { sound } from './utils/audio';
+import { staffAccess } from './account/staff';
 
 function entryFromLocation() {
   try {
@@ -50,9 +51,10 @@ export default function App() {
     const start = entryFromLocation();
     if (start.inviteCode) return 'invite';
     if (start.assignmentExchangeId) return 'assignment';
-    return 'exchange';
+    return 'home';
   });
-  const [afterAccount, setAfterAccount] = useState('exchange');
+  const [afterAccount, setAfterAccount] = useState('home');
+  const [manageExchangeId, setManageExchangeId] = useState('');
   const [recovery, setRecovery] = useState(false);
 
   const [exchange, setExchange] = useState(() => {
@@ -152,6 +154,14 @@ export default function App() {
     }
   };
 
+  const openCreate = () => {
+    const inProgress = exchange.wizardStep && exchange.wizardStep !== 'start';
+    if (inProgress && !window.confirm('Start a new exchange on this device? The current one will be replaced.')) return;
+    if (inProgress) setExchange(blankExchange());
+    sound.playClick();
+    setArea('exchange');
+  };
+
   const handleStartNewExchange = () => {
     if (!window.confirm('Start a new Secret Santa on this device? The current exchange will be replaced.')) return;
     sound.playClick();
@@ -172,7 +182,7 @@ export default function App() {
       setArea('assignment');
       return;
     }
-    const next = afterAccount === 'account' || afterAccount === 'invite' || afterAccount === 'assignment' ? 'exchange' : afterAccount;
+    const next = afterAccount === 'account' || afterAccount === 'invite' || afterAccount === 'assignment' ? 'home' : afterAccount;
     setArea(next);
   };
 
@@ -180,7 +190,7 @@ export default function App() {
     ? 'Back to the invitation'
     : afterAccount === 'assignment'
       ? 'Back to your recipient'
-      : 'Back to the exchange';
+      : 'Back home';
 
   // If user opened a direct secret link via URL:
   if (urlPayload) {
@@ -219,23 +229,20 @@ export default function App() {
         onOpenAffiliateModal={() => setShowAffiliateModal(true)}
         user={user}
         area={area}
+        onOpenHome={() => setArea('home')}
+        onCreateExchange={openCreate}
         onOpenAccount={() => {
-          setAfterAccount(area === 'account' ? 'exchange' : area);
+          setAfterAccount(area === 'account' ? 'home' : area);
           setArea('account');
         }}
-        onOpenAdmin={() => setArea('admin')}
+        onOpenManage={() => setArea('admin')}
         onOpenWishlist={() => setArea('wishlist')}
-        onOpenExchange={() => setArea('exchange')}
         onOpenWhiteElephant={() => setArea('white-elephant')}
         onOpenSupport={() => setArea('support')}
         onOpenMerchants={() => setArea('merchants')}
       />
 
-      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 z-10">
-        <DealBanner />
-      </div>
-
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 z-10">
+      <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 lg:p-8 z-10">
         {area === 'invite' && inviteCode && (
           <InviteScreen
             code={inviteCode}
@@ -279,12 +286,28 @@ export default function App() {
               setArea('account');
             }}
             onBack={leaveAccount}
+            staff={staffAccess(user)}
+            onOpenSupport={() => setArea('support')}
+            onOpenMerchants={() => setArea('merchants')}
+          />
+        )}
+        {area === 'home' && (
+          <HomeScreen
+            exchange={exchange}
+            user={user}
+            onCreate={openCreate}
+            onContinue={() => setArea('exchange')}
+            onOpenManage={(id) => {
+              setManageExchangeId(id);
+              setArea('admin');
+            }}
           />
         )}
         {area === 'admin' && (
           <AdminScreen
-            key={user?.id || 'signed-out'}
+            key={`${user?.id || 'signed-out'}:${manageExchangeId}`}
             user={user}
+            initialExchangeId={manageExchangeId}
             onNeedAccount={() => {
               setAfterAccount('admin');
               setArea('account');
@@ -312,6 +335,7 @@ export default function App() {
               setAfterAccount('support');
               setArea('account');
             }}
+            staff={staffAccess(user)}
           />
         )}
         {area === 'merchants' && (
@@ -336,13 +360,8 @@ export default function App() {
       </main>
 
       <footer className="z-10 py-6 border-t border-white/5 text-center text-xs text-slate-400 no-print hidden sm:block">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>
-            🎁 <strong>GiftLoop</strong> • Secret Santa
-          </span>
-          <span className="text-slate-400">
-            Names stay on this device • Reveal links open in mail and messages
-          </span>
+        <div className="max-w-3xl mx-auto px-4">
+          GiftLoop · Christmas Secret Santa
         </div>
       </footer>
 

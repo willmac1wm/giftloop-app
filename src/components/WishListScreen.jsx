@@ -36,18 +36,13 @@ export default function WishListScreen({ user, onNeedAccount }) {
   const [giftColor, setGiftColor] = useState("");
   const [giftPriority, setGiftPriority] = useState("");
   const [editingId, setEditingId] = useState("");
-  const [smsOptIn, setSmsOptIn] = useState(false);
-  const [smsPhone, setSmsPhone] = useState("");
-  const [emailInvites, setEmailInvites] = useState(true);
-  const [emailAssignments, setEmailAssignments] = useState(true);
-  const [emailReminders, setEmailReminders] = useState(true);
 
   useEffect(() => {
     if (!user) return undefined;
     let cancel = false;
     setBusy(true);
-    Promise.all([api("/api/wishlist"), api("/api/wish-lists"), api("/api/settings")])
-      .then(([memberships, saved, settings]) => {
+    Promise.all([api("/api/wishlist"), api("/api/wish-lists")])
+      .then(([memberships, saved]) => {
         if (cancel) return;
         const rows = memberships.lists || [];
         setLists(rows);
@@ -57,11 +52,6 @@ export default function WishListScreen({ user, onNeedAccount }) {
         const owned = saved.lists || [];
         setOwnedLists(owned);
         setShareListId(owned[0]?.id || "");
-        setSmsOptIn(Boolean(settings.smsOptIn));
-        setSmsPhone(settings.phone || "");
-        setEmailInvites(settings.emailInvites !== false);
-        setEmailAssignments(settings.emailAssignments !== false);
-        setEmailReminders(settings.emailReminders !== false);
       })
       .catch((err) => {
         if (!cancel) setError(err.message);
@@ -103,8 +93,8 @@ export default function WishListScreen({ user, onNeedAccount }) {
   return (
     <section className="glass-panel p-5 max-w-2xl mx-auto space-y-4">
       <div>
-        <h2 className="text-xl font-bold font-heading text-white">My exchanges</h2>
-        <p className="text-xs text-slate-400">Signed in as {user.email}. Your recipient appears only after the draw.</p>
+        <h2 className="text-xl font-bold font-heading text-white">Wish list</h2>
+        <p className="text-xs text-slate-400">Signed in as {user.email}. Add a gift, then share the list with an exchange. Notification preferences are in Account.</p>
       </div>
       <div className="grid sm:grid-cols-2 gap-3">
         <form
@@ -158,16 +148,21 @@ export default function WishListScreen({ user, onNeedAccount }) {
               .catch((err) => setError(err.message));
           }}
         >
-          <p className="text-sm text-white">{editingId ? "Edit gift" : "Add a gift"}</p>
-          <input className="glass-input w-full" aria-label="Gift name" placeholder="Wool socks or a homemade pie" value={giftTitle} onChange={(e) => setGiftTitle(e.target.value)} />
-          <input className="glass-input w-full" aria-label="Product link" placeholder="Optional product link" value={giftUrl} onChange={(e) => setGiftUrl(e.target.value)} />
-          <input className="glass-input w-full" aria-label="Gift notes" placeholder="Notes" value={giftNotes} onChange={(e) => setGiftNotes(e.target.value)} />
-          <div className="grid grid-cols-3 gap-2">
-            <input className="glass-input" aria-label="Size" placeholder="Size" value={giftSize} onChange={(e) => setGiftSize(e.target.value)} />
-            <input className="glass-input" aria-label="Color" placeholder="Color" value={giftColor} onChange={(e) => setGiftColor(e.target.value)} />
-            <input className="glass-input" aria-label="Priority" placeholder="Priority" value={giftPriority} onChange={(e) => setGiftPriority(e.target.value)} />
-          </div>
-          <button className="btn btn-secondary text-xs" type="submit">{editingId ? "Save gift" : "Add gift"}</button>
+          <p className="text-sm text-white">{editingId ? "Edit this wish" : "Add a wish"}</p>
+          <input className="glass-input w-full" aria-label="Gift name" placeholder="Wool socks or a homemade pie" value={giftTitle} onChange={(e) => setGiftTitle(e.target.value)} required />
+          <input className="glass-input w-full" aria-label="Product link" placeholder="Product link, or leave blank for an idea" value={giftUrl} onChange={(e) => setGiftUrl(e.target.value)} />
+          <details>
+            <summary className="text-xs text-slate-300 cursor-pointer">Size, color, notes</summary>
+            <div className="space-y-2 mt-2">
+              <input className="glass-input w-full" aria-label="Gift notes" placeholder="Notes" value={giftNotes} onChange={(e) => setGiftNotes(e.target.value)} />
+              <div className="grid grid-cols-3 gap-2">
+                <input className="glass-input" aria-label="Size" placeholder="Size" value={giftSize} onChange={(e) => setGiftSize(e.target.value)} />
+                <input className="glass-input" aria-label="Color" placeholder="Color" value={giftColor} onChange={(e) => setGiftColor(e.target.value)} />
+                <input className="glass-input" aria-label="Priority" placeholder="Priority" value={giftPriority} onChange={(e) => setGiftPriority(e.target.value)} />
+              </div>
+            </div>
+          </details>
+          <button className="btn btn-primary text-sm" type="submit">{editingId ? "Save wish" : "Add a wish"}</button>
         </form>
       </div>
       {ownedLists.length > 0 && (
@@ -224,26 +219,6 @@ export default function WishListScreen({ user, onNeedAccount }) {
           )}
         </div>
       )}
-      <form
-        className="space-y-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          api("/api/settings", {
-            method: "POST",
-            json: { smsOptIn, phone: smsPhone, emailInvites, emailAssignments, emailReminders },
-          })
-            .then(() => setNotice(smsOptIn ? "Text updates are on for this number." : "Text updates are off."))
-            .catch((err) => setError(err.message));
-        }}
-      >
-        <p className="text-sm text-white">Settings</p>
-        <label className="flex items-center gap-2 text-sm text-slate-200">
-          <input type="checkbox" checked={smsOptIn} onChange={(e) => setSmsOptIn(e.target.checked)} />
-          Text me about this exchange. An organizer typing my number is not consent.
-        </label>
-        <input className="glass-input w-full" aria-label="Phone for texts" placeholder="Phone for texts" value={smsPhone} onChange={(e) => setSmsPhone(e.target.value)} />
-        <button className="btn btn-secondary text-xs" type="submit">Save notification settings</button>
-      </form>
       {error && <p className="text-sm text-rose-300" role="alert">{error}</p>}
       {notice && <p className="text-sm text-emerald-300">{notice}</p>}
       {!busy && lists.length === 0 && !error && (
@@ -268,7 +243,13 @@ export default function WishListScreen({ user, onNeedAccount }) {
             List name
             <input className="glass-input w-full mt-1" value={draft.listTitle || ""} onChange={(e) => setDraft({ ...draft, listTitle: e.target.value })} />
           </label>
-          <div className="grid sm:grid-cols-2 gap-2">
+          <label className="block text-xs text-slate-300">
+            Wishes, one per line
+            <textarea className="glass-input w-full mt-1 min-h-28" value={draft.wishes || ""} onChange={(e) => setDraft({ ...draft, wishes: e.target.value })} />
+          </label>
+          <details>
+            <summary className="text-xs text-slate-300 cursor-pointer">Age, who the gifts are for, and hobbies</summary>
+          <div className="grid sm:grid-cols-2 gap-2 mt-2">
             <label className="block text-xs text-slate-300">
               Age
               <select className="glass-input w-full mt-1" value={draft.ageBand || ""} onChange={(e) => setDraft({ ...draft, ageBand: e.target.value })}>
@@ -284,14 +265,11 @@ export default function WishListScreen({ user, onNeedAccount }) {
               </select>
             </label>
           </div>
-          <label className="block text-xs text-slate-300">
-            Wishes, one per line
-            <textarea className="glass-input w-full mt-1 min-h-28" value={draft.wishes || ""} onChange={(e) => setDraft({ ...draft, wishes: e.target.value })} />
-          </label>
-          <label className="block text-xs text-slate-300">
+          <label className="block text-xs text-slate-300 mt-2">
             Hobbies
             <input className="glass-input w-full mt-1" value={draft.hobbies || ""} onChange={(e) => setDraft({ ...draft, hobbies: e.target.value })} />
           </label>
+          </details>
           <button className="btn btn-gold text-sm" type="submit" disabled={busy}>
             <Save size={14} /> Save wish list
           </button>

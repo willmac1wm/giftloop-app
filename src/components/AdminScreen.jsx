@@ -8,9 +8,9 @@ function Gate({ onNeedAccount }) {
   return (
     <section className="glass-panel p-6 max-w-xl mx-auto text-center">
       <Shield className="mx-auto text-amber-300 mb-3" />
-      <h2 className="text-xl font-bold font-heading text-white">Admin</h2>
+      <h2 className="text-xl font-bold font-heading text-white">Manage exchange</h2>
       <p className="text-sm text-slate-300 mt-2">
-        Sign in to create an exchange, add the guest list, draw names, and send each private link by email or text.
+        Sign in to save an exchange, invite guests, and draw names. This is not platform administration.
       </p>
       <button type="button" className="btn btn-gold text-sm mt-4" onClick={onNeedAccount}>
         Sign in
@@ -19,7 +19,7 @@ function Gate({ onNeedAccount }) {
   );
 }
 
-export default function AdminScreen({ user, onNeedAccount }) {
+export default function AdminScreen({ user, onNeedAccount, initialExchangeId = "" }) {
   const [exchanges, setExchanges] = useState([]);
   const [selectedId, setSelectedId] = useState("");
   const [detail, setDetail] = useState(null);
@@ -52,7 +52,8 @@ export default function AdminScreen({ user, onNeedAccount }) {
     loadList()
       .then((rows) => {
         if (cancel) return;
-        if (rows[0]) return openExchange(rows[0].id);
+        const preferred = rows.find((row) => row.id === initialExchangeId);
+        if (preferred || rows[0]) return openExchange((preferred || rows[0]).id);
       })
       .catch((err) => {
         if (!cancel) setError(err.message);
@@ -63,7 +64,7 @@ export default function AdminScreen({ user, onNeedAccount }) {
     return () => {
       cancel = true;
     };
-  }, [user]);
+  }, [user, initialExchangeId]);
 
   if (!user) return <Gate onNeedAccount={onNeedAccount} />;
 
@@ -147,9 +148,9 @@ export default function AdminScreen({ user, onNeedAccount }) {
     <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
       <aside className="glass-panel p-4">
         <h2 className="font-heading font-bold text-white flex items-center gap-2">
-          <Shield size={16} /> Admin
+          <Shield size={16} /> Manage exchange
         </h2>
-        <p className="text-[11px] text-slate-400 mt-1">Exchanges you organize.</p>
+        <p className="text-[11px] text-slate-400 mt-1">Exchanges you organize. Recipients stay hidden.</p>
         <ul className="mt-3 space-y-2">
           {exchanges.map((item) => (
             <li key={item.id}>
@@ -187,10 +188,12 @@ export default function AdminScreen({ user, onNeedAccount }) {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h3 className="text-lg font-bold text-white">{exchange.title}</h3>
+                <p className="text-sm text-slate-300">
+                  {[exchange.eventDate && `Gift date ${exchange.eventDate}`, exchange.budget && `Budget ${exchange.budget}`].filter(Boolean).join(" · ") || "Add a gift date and budget when you create the exchange."}
+                </p>
                 <p className="text-xs text-slate-400">
-                  {exchange.drawn ? "Drawn. Recipients stay hidden here." : exchange.drawReady ? "Ready to draw the accepted guests." : "Waiting for at least two accepted guests."}
+                  Next: {exchange.drawn ? "Tell people their recipient is ready." : exchange.drawReady ? "Draw names." : "Wait until at least two guests accept."}
                   {exchange.signupDeadline ? ` Signup deadline ${exchange.signupDeadline}.` : ""}
-                  {exchange.budget ? ` Budget ${exchange.budget}.` : ""}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -219,7 +222,6 @@ export default function AdminScreen({ user, onNeedAccount }) {
                     <strong className="text-white">{member.name}</strong>
                     <span className="text-slate-400"> · {member.status} · {member.email || "no email"} · {member.phone || "no phone"}</span>
                     {member.hasWishes ? <span className="text-emerald-300"> · wishes</span> : <span> · no wishes yet</span>}
-                    {member.inviteToken ? <span className="block text-xs text-slate-500 break-all">Invite code {member.inviteToken}</span> : null}
                   </span>
                   <span className="flex gap-2">
                     {member.status === "requested" && !exchange.drawn && (
@@ -267,11 +269,6 @@ export default function AdminScreen({ user, onNeedAccount }) {
                 <button className="btn btn-secondary text-xs" type="submit">Add exclusion</button>
               </form>
             )}
-            {exchange.joinOpen && exchange.joinToken && (
-              <p className="text-xs text-slate-300 break-all">
-                Open join link: {`${window.location.origin}/?view=join&code=${exchange.joinToken}`}. Anyone with this link can ask to join. It does not show assignments.
-              </p>
-            )}
             {(detail.exclusions || []).length > 0 && (
               <ul className="text-xs text-slate-300">
                 {detail.exclusions.map((rule) => (
@@ -280,7 +277,24 @@ export default function AdminScreen({ user, onNeedAccount }) {
               </ul>
             )}
 
-            <div className="flex flex-wrap gap-2">
+            <details className="rounded-xl border border-white/10 p-3">
+              <summary className="cursor-pointer text-sm text-white">Invitation links</summary>
+              <p className="text-xs text-slate-400 mt-2">A private link works only for the invited email. It does not show an assignment.</p>
+              <ul className="mt-2 space-y-1 text-xs text-slate-300 break-all">
+                {(detail.members || []).filter((member) => member.inviteToken).map((member) => (
+                  <li key={member.id}>{member.name}: {`${window.location.origin}/?view=invite&code=${member.inviteToken}`}</li>
+                ))}
+              </ul>
+              {exchange.joinOpen && exchange.joinToken && (
+                <p className="text-xs text-amber-200 mt-2 break-all">
+                  Open join link: {`${window.location.origin}/?view=join&code=${exchange.joinToken}`}. Anyone with this link can ask to join. You still choose who is drawn.
+                </p>
+              )}
+            </details>
+            <details className="rounded-xl border border-white/10 p-3">
+              <summary className="cursor-pointer text-sm text-white">Messages GiftLoop sends</summary>
+              <p className="text-xs text-slate-400 mt-2">These go out through GiftLoop. They are separate from links you send with your own mail or messages app.</p>
+            <div className="flex flex-wrap gap-2 mt-3">
               <button type="button" className="btn btn-secondary text-xs" onClick={() => notify("email", "invite")} disabled={busy || !providers?.emailReady}>
                 <Mail size={14} /> Email invitations
               </button>
@@ -326,6 +340,7 @@ export default function AdminScreen({ user, onNeedAccount }) {
               {providers && !providers.emailReady ? " Add RESEND_API_KEY and EMAIL_FROM to turn email on." : ""}
               {providers && !providers.smsReady ? " Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER to turn texting on." : ""}
             </p>
+            </details>
 
             {(detail.deliveries || []).length > 0 && (
               <ul className="text-xs text-slate-300 space-y-1">

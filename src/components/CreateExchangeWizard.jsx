@@ -306,20 +306,14 @@ function StartStep({ onStart, onLoadSample }) {
       <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/15 text-emerald-300 flex items-center justify-center mb-4">
         <Gift size={28} />
       </div>
-      <h2 className="text-3xl font-bold font-heading text-white">Start a Secret Santa</h2>
+      <h2 className="text-3xl font-bold font-heading text-white">Create an exchange</h2>
         <p className="text-sm text-slate-300 mt-2 mb-5 max-w-md mx-auto">
-          Add your group with the email or mobile you’ll use to send each private link.
-          No Gift Loop account. Your mail and messages apps do the sending.
+          Add your group, then draw names. No account needed. Names stay on this device, and exclusions come before the draw.
         </p>
       <button type="button" onClick={onStart} className="btn btn-primary text-base px-5 py-3">
         <Sparkles size={18} />
-        Start a Secret Santa
+        Continue
       </button>
-      <ul className="wizard-points">
-        <li>Names, budget, and the draw never leave this browser</li>
-        <li>Exclusions are a step of their own, before anyone is paired</li>
-        <li>Email or text each private link from your own phone</li>
-      </ul>
       {onLoadSample && (
         <button
           type="button"
@@ -638,7 +632,7 @@ function ExclusionsStep({ event, patch, picker, setPicker, onBack, onContinue })
             patch({ exclusionsChoice: 'none', exclusions: [], matches: null });
           }}
         >
-          Do not set exclusions
+          No exclusions
         </button>
         <button
           type="button"
@@ -1087,12 +1081,9 @@ function ShareStep({ event, onPreviewReveal, onUpdateEvent, onBack, onRedraw, on
   return (
     <section className="glass-panel-elevated p-5 sm:p-6 border border-emerald-500/30 space-y-4">
       <div>
-        <span className="badge badge-emerald mb-2">
-          <Check size={12} /> Draw completed
-        </span>
-        <h2 className="text-2xl font-bold font-heading text-white">Share reveal links</h2>
+        <h2 className="text-2xl font-bold font-heading text-white">Share each link</h2>
         <p className="text-sm text-slate-300 mt-1">
-          Email or text each person their own link. You can still copy, print, or show a QR code.
+          Open Share for one person. Email and text use your own apps.
         </p>
       </div>
       <RevealLinksPanel event={event} onPreviewReveal={onPreviewReveal} onUpdateEvent={onUpdateEvent} />

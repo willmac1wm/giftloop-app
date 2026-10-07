@@ -47,42 +47,45 @@ export default function AssignmentScreen({ exchangeId, user, onNeedAccount }) {
       {assignment && loadedUserId === user.id && !assignment.ready && <p className="text-sm text-slate-300">Names have not been drawn yet.</p>}
       {assignment?.ready && loadedUserId === user.id && (
         <>
-          <p className="text-white">You are giving to {assignment.recipientName}.</p>
+          <p className="text-sm text-slate-300">Next: shop for {assignment.recipientName}.</p>
+          <p className="text-lg text-white">You are giving to {assignment.recipientName}.</p>
+          <p className="text-xs text-slate-400">Opening a store does not mark a gift purchased. Sample referral codes are not a confirmed affiliate program.</p>
           <ul className="space-y-2">
             {(assignment.items || []).map((item) => (
-              <li key={item.id} className="border border-white/10 rounded-lg p-3 text-sm">
+              <li key={item.id} className="border border-white/10 rounded-lg p-3 text-sm space-y-2">
                 <p className="text-white">{item.title}</p>
                 {item.size || item.color ? <p className="text-xs text-slate-400">{[item.size, item.color].filter(Boolean).join(" · ")}</p> : null}
                 {item.notes && <p className="text-slate-300">{item.notes}</p>}
-                <button
-                  type="button"
-                  className="text-sky-300 text-xs"
-                  onClick={() => api(`/api/wish-items/${item.id}/shop`, { method: "POST", json: {} }).then((data) => {
-                    if (!data.shoppingUrl) {
-                      setError("This gift has no store link.");
-                      return;
-                    }
-                    window.open(data.shoppingUrl, "_blank", "noopener");
-                  }).catch((err) => setError(err.message))}
-                >
-                  Shop at {item.retailer || "the store"}
-                </button>
-                <p className="text-[11px] text-slate-500">Opening the store does not mark this gift purchased.</p>
-                <p className="text-xs text-slate-400 mt-1">{item.reserved ? "Reserved" : "Available"}</p>
-                {!item.reserved && (
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    className="btn btn-secondary text-xs mt-2"
-                    onClick={() => api(`/api/wish-items/${item.id}/reserve`, { method: "POST", json: {} }).then(() => {
-                      setAssignment({
-                        ...assignment,
-                        items: assignment.items.map((row) => (row.id === item.id ? { ...row, reserved: true, reservedByMe: true } : row)),
-                      });
+                    className="btn btn-primary text-xs"
+                    onClick={() => api(`/api/wish-items/${item.id}/shop`, { method: "POST", json: {} }).then((data) => {
+                      if (!data.shoppingUrl) {
+                        setError("This gift has no store link.");
+                        return;
+                      }
+                      window.open(data.shoppingUrl, "_blank", "noopener");
                     }).catch((err) => setError(err.message))}
                   >
-                    I’ll get this
+                    Shop{item.retailer ? ` at ${item.retailer}` : ""}
                   </button>
-                )}
+                  {!item.reserved && (
+                    <button
+                      type="button"
+                      className="text-xs text-slate-300 underline"
+                      onClick={() => api(`/api/wish-items/${item.id}/reserve`, { method: "POST", json: {} }).then(() => {
+                        setAssignment({
+                          ...assignment,
+                          items: assignment.items.map((row) => (row.id === item.id ? { ...row, reserved: true, reservedByMe: true } : row)),
+                        });
+                      }).catch((err) => setError(err.message))}
+                    >
+                      I’ll get this
+                    </button>
+                  )}
+                  {item.reserved && <span className="text-xs text-slate-400">Reserved</span>}
+                </div>
               </li>
             ))}
             {(assignment.items || []).length === 0 && <li className="text-sm text-slate-400">No shared wish list yet.</li>}

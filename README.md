@@ -22,7 +22,7 @@ These run in the browser with `npm run dev`. They do not need a database.
 These files exist. They do not finish the job in local Vite, because Netlify Identity and Netlify Database run on a Netlify deploy, not inside `npm run dev`.
 
 - **Sign in** (`src/components/AccountScreen.jsx`) calls `@netlify/identity`. Until Identity is enabled for the site, sign-in cannot complete. New accounts are tagged `member` in `netlify/functions/identity-signup.js`. An invitation or assignment link stays in place while the person signs in, then returns them to that page. Identity signup does not create support or administrator accounts. A co-organizer flag can be stored on one exchange; the organizer screen does not offer that control yet.
-- **Admin** is the organizer dashboard for a saved exchange: who is invited, accepted, or declined, whether wishes exist, whether the draw is ready, exclusions, and whether a notice was sent. Co-organizers can be invited onto that exchange. The dashboard does not list recipients. Cancelling a draw requires an explicit redraw. The server draw uses the same pairing rules as the device draw, including exclusions, and a second tap does not create a second set of pairs.
+- **Manage exchange** is the organizer dashboard for a saved exchange: who is invited, accepted, or declined, whether wishes exist, whether the draw is ready, exclusions, and whether a notice was sent. Co-organizers can be invited onto that exchange. The dashboard does not list recipients. Cancelling a draw requires an explicit redraw. The server draw uses the same pairing rules as the device draw, including exclusions, and a second tap does not create a second set of pairs.
 - **Private invitations** use `?view=invite&code=`. Accepting requires the confirmed account whose email matches the invitation. The page does not contain an assignment. **Open join** uses `?view=join&code=`. Anyone with that link can ask to join, and the page says so. The organizer still chooses who is drawn.
 - **Account assignments** use `?view=assignment&exchange=`. The page asks the matching signed-in member for their recipient. The link itself does not include the name. Older guest links that already contain a name stay readable by anyone who has them.
 - **Wish lists** can be saved on the member account, shared with an exchange, and reserved by the giver. The owner’s list does not show who reserved an item. Opening a shop link does not mark it purchased.
@@ -35,7 +35,7 @@ No concrete limit in this app requires replacing Netlify Database, Netlify Ident
 
 ## White Elephant
 
-White Elephant is on this branch again (`src/components/WhiteElephantTab.jsx`) and opens from the header. It stays on this device, like the no-account quick draw. Merging the earlier Secret Santa commits by themselves would have deleted that file; this branch puts it back.
+White Elephant is on this branch again (`src/components/WhiteElephantTab.jsx`) and opens from the menu. It stays on this device, like the no-account draw. Merging the earlier Secret Santa commits by themselves would have deleted that file; this branch puts it back.
 
 ## Roadmap
 
@@ -45,7 +45,7 @@ Permissions below are not subscription tiers. Free use is the current product. P
 | --- | --- | --- |
 | Visitor | Public pages and an invitation | The site is public. A private invite accepts or declines and does not show an assignment. An open join link says anyone with it can ask to join. |
 | Member | Account, wish lists they own, their own assignment, notification choices | Sign-in, a wish-list page, notification settings, and an assignment page that returns only that member’s recipient |
-| Organizer | One exchange: invites, exclusions, draw | Device wizard, plus the database Admin screen. The screen does not list recipients. |
+| Organizer | One exchange: invites, exclusions, draw | Device wizard, plus Manage exchange for a saved exchange. The screen does not list recipients. |
 | Co-organizer | Help manage one exchange | The API can store the role. The organizer screen does not grant it yet. |
 | Support staff | Tickets, account help, and failed email or text, without opening assignments | API and a Support screen exist. They return 404 for an ordinary member. They have not been tried against live Identity roles. |
 | Administrator | Merchants, affiliate setup, and who has staff access | A merchant screen exists for an Identity `admin` role. Staff access is still granted in the Netlify Identity UI. Signup cannot grant it. Sample affiliate tags are not a verified program. |
@@ -54,7 +54,7 @@ Next implementation work, in order:
 
 1. Prove a saved exchange on a Netlify deploy with Identity enabled: several accounts, one failed invitation, one impossible exclusion, one ordinary retailer link, and one phone that has not opted in.
 2. Prove the reminder queue on a Netlify deploy: quiet hours, opt-out, and a real provider callback. The queue must not draw names again.
-3. Prove support and merchant admin with Identity roles on that deploy. Keep those separate from the organizer’s Admin screen, and keep assignments out of the support view.
+3. Prove support and merchant admin with Identity roles on that deploy. Keep those separate from Manage exchange, and keep assignments out of the support view.
 4. After the shared web exchange passes on desktop and a real iPhone, package it with Capacitor. Packaging is not an App Store release.
 
 ## Local development
