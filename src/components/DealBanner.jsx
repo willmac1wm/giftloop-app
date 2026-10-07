@@ -2,6 +2,7 @@ import React from 'react';
 import { ExternalLink, Tag } from 'lucide-react';
 import { getStoredAffiliateConfig } from '../utils/affiliate';
 import { dealLinks } from '../utils/deals';
+import StoreConcourse from './StoreConcourse';
 
 export default function DealBanner({ affiliate }) {
   const config = affiliate || (typeof localStorage === 'undefined' ? undefined : getStoredAffiliateConfig());
@@ -21,13 +22,10 @@ export default function DealBanner({ affiliate }) {
         Explore the deals
         <ExternalLink size={14} />
       </a>
-      <div className="deal-banner-stores">
-        {deals.stores.map((store) => (
-          <a key={store.id} href={store.href} target="_blank" rel="noopener noreferrer">
-            {store.name}
-          </a>
-        ))}
-      </div>
+      <StoreConcourse
+        hrefFor={(storeId) => deals.stores.find((store) => store.id === storeId)?.href}
+        label="Affiliate stores"
+      />
     </aside>
   );
 }

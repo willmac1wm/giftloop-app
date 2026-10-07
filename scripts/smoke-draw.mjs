@@ -175,6 +175,8 @@ const duringSale = dealLinks(DEFAULT_AFFILIATE_CONFIG, new Date('2026-10-06T18:0
 assert(duringSale.live && duringSale.title.includes('Prime Big Deal Days'), duringSale.title);
 assert(duringSale.stores[0].href.includes('primebigdealdays') && duringSale.stores[0].href.includes('tag=giftloop-20'), duringSale.stores[0].href);
 assert(duringSale.stores.every((store) => store.href.includes('giftloop')), 'every deal link carries a referral id');
+const cabelas = generateStoreSearchUrl('wool socks', 'cabelas', DEFAULT_AFFILIATE_CONFIG);
+assert(cabelas.includes('cabelas.com') && cabelas.includes('affCode=giftloop'), cabelas);
 const afterSale = dealLinks(DEFAULT_AFFILIATE_CONFIG, new Date('2026-10-09T00:00:00.000Z'));
 assert(!afterSale.live && afterSale.stores[0].href.includes('/deals'), afterSale.stores[0].href);
 assert(isPrimeBigDealDays(new Date('2026-10-07T20:00:00.000Z')), 'sale still open on Oct 7 evening Pacific');
