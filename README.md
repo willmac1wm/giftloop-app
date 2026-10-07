@@ -1,102 +1,65 @@
 # GiftLoop
 
-GiftLoop is a Secret Santa platform for creating exchanges, inviting participants, drawing names privately, sharing wish lists, and receiving email and optional SMS updates. Members can shop wish-list items through supported retailer affiliate links.
+GiftLoop is a Secret Santa app. An organizer can draw names on this device with no account. A second path, still being connected, stores an exchange in Netlify Database for people who sign in.
 
-Launch is Secret Santa, in English, for the US, as a mobile-friendly website. One account system, one messaging system, and one shopping system stay in this app so later gifting features can reuse them. Email is the account. Text is optional and requires the recipient’s own opt-in.
+Guest reveal links are encoded in the URL. Anyone who receives the link can open it. That is not encryption, and it is not limited to the intended person. Assignments for signed-in members are supposed to open only for the participant who drew that name. That check is not built yet.
 
-## Status
+Paid plans are separate from permissions and are not part of this app yet.
 
-Labels below match this repository, not a future design.
+## What works today
 
-### Implemented
+These run in the browser with `npm run dev`. They do not need a database.
 
-- On-device Secret Santa: names, exclusions, a draw, and a wish list saved in the browser.
-- Manual share: **Email link** and **Text link** open the organizer’s own mail and messages apps.
-- Shopping: Amazon, Walmart, Target, Bass Pro Shops, Cabela's, and Best Buy search links, plus a gift finder. Affiliate codes are pasted in **Affiliate Tags** and stored on that device.
-- Reveal page opened from `?view=reveal&t=`. The token is encoded assignment data. It is not encrypted, and anyone who has the link can open it.
+- Secret Santa setup on this device: names, paste-in import, wish lists, exclusions, occasion, date, budget, and the draw. Data is saved in `localStorage` under `giftloop_secretsanta_v2`.
+- The draw is `src/utils/shuffle.js`. Nobody is paired with themselves, exclusions are directional, and the default is one giving circle. Two people who exclude each other cannot be drawn.
+- After the draw, each person gets a reveal link. **Email link** and **Text link** open the organizer’s own mail and messages apps. Copy, QR, print, WhatsApp, and the device share sheet are there too. Gift Loop does not send those messages.
+- The reveal page reads `?view=reveal&t=`. The token contains the giver, the receiver, and the wish list.
+- Shopping uses Gift Loop referral codes: Amazon, Walmart, Target, Bass Pro Shops, Cabela's, and Best Buy. **Affiliate Tags** accepts a code or a full affiliate link and stores it on this device. The deal banner, shopping-center doors, and gift finder use those codes.
+- The phone browser can use the site. `index.html` has a web manifest and Apple web-app tags. That is not an App Store build.
 
-### In progress
+## Partially connected
 
-- Sign-in screen (Netlify Identity).
-- Organizer **Admin**: create an exchange, add people, draw on the server, and send links through Resend or Twilio when those environment variables are set.
-- **My list**: a signed-in member edits the wish list stored for their membership.
-- Database tables for exchanges, members, assignments, and delivery attempts (`netlify/database/migrations`).
+These files exist. They do not finish the job in local Vite, because Netlify Identity and Netlify Database run on a Netlify deploy, not inside `npm run dev`.
 
-### Planned
+- **Sign in** (`src/components/AccountScreen.jsx`) calls `@netlify/identity`. Until Identity is enabled for the site, sign-in cannot complete. New accounts are tagged `member` in `netlify/functions/identity-signup.js`. There is no co-organizer, support, or administrator role yet.
+- **Admin** (`src/components/AdminScreen.jsx`) is the organizer’s screen for exchanges stored in the database. The API is `netlify/functions/api.js`. A signed-in user can create an exchange, add people, draw, and ask the server to email or text links. The draw on the server does not take exclusions. The admin response does not include who was paired with whom.
+- **My list** (`src/components/WishListScreen.jsx`) edits the wish-list fields on that person’s row in one exchange. It is not a wish list the member keeps and reuses across exchanges. If the draw has been saved, the signed-in giver can see the person they were assigned.
+- **Email** is Resend, and **text** is Twilio, in `src/server/messages.js`. Sending stays off until `RESEND_API_KEY` and `EMAIL_FROM`, or `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER`, are set in the Netlify environment. The server still puts the guest reveal link in the message, so anyone who receives it can open the assignment. There is no opt-in record, STOP handling, quiet hours, reminder schedule, or delivery webhook.
+- Database tables are exchanges, members, assignments, and deliveries (`db/schema.js`). The migration is `netlify/database/migrations/20261007111631_accounts`. Netlify applies it on deploy. `npm run db:migrate` is only for a local Netlify database.
 
-- Move accounts and data to the target stack below. Do not run that stack beside the current Netlify database.
-- Invitations with acceptance, join links, and exchange states (draft, accepting participants, ready to draw, drawn, completed, cancelled).
-- Co-organizers, support agents, and administrators.
-- Reveal only after sign-in. Stop putting the recipient’s name in the URL.
-- Wish lists that belong to the member across exchanges, with reservations that hide the buyer from the list owner.
-- Scheduled reminders, SMS opt-in, STOP/HELP, and quiet hours.
-- Public pages (how it works, FAQ, privacy, terms, affiliate disclosure) and support tickets.
-- Central merchant and affiliate administration.
-- Paid plans, only after the free exchange is in use.
+No concrete limit in this app requires replacing Netlify Database, Netlify Identity, Netlify Functions, Resend, or Twilio. Supabase and Inngest were a suggestion. They are not the stack, and this repo does not install them.
 
-## Membership
+## White Elephant
 
-Subscription plans are separate from permissions. The free tier is the launch plan: exchanges, wish lists, private draws, and standard email. Paid Plus and Business plans are not defined yet. SMS needs a spending cap before launch. Do not promise unlimited texting.
+`main` still has the White Elephant game (`src/components/WhiteElephantTab.jsx` on `origin/main`). This branch does not mount it. The files were removed in earlier Secret Santa work, not by this README. This change does not delete White Elephant.
 
-| Role | Permissions |
-| --- | --- |
-| Visitor | Public pages and an invitation landing page |
-| Member | Join exchanges, manage wish lists, reveal their own recipient, set notification preferences |
-| Organizer | Create and manage one exchange: invitations, exclusions, and the draw |
-| Co-organizer | Help manage one exchange |
-| Support agent | Tickets and delivery problems, without opening secret assignments |
-| Administrator | Merchants, affiliate settings, accounts, and operational tools |
+## Roadmap
 
-A member can organize one exchange and only participate in another. Organizer, co-organizer, and support access does not include everyone’s assignments.
+Permissions below are not subscription tiers. Free use is the current product. Paid tiers can wait.
 
-These roles are the target. The app today has a signed-in organizer admin and a member wish list. Visitor, co-organizer, support agent, and administrator are not built.
-
-## Technology
-
-The interface is already React and Vite. It is JavaScript, not TypeScript yet. Confirm that before a rewrite. Capacitor config is in the repo for a later iOS or Android package. Store signing and submission are not done.
-
-Target backend, from the product brief. None of this is installed yet:
-
-| Part | Target | Purpose |
+| Role | Target access | In this branch |
 | --- | --- | --- |
-| Database | Supabase PostgreSQL | Accounts, exchanges, wish lists, notifications |
-| Login | Supabase Auth | Email login links or codes |
-| Server | TypeScript functions | Draws, permissions, invitations, messaging |
-| Files | Supabase Storage | Approved uploads only |
-| Email | Resend | Invitations, login mail, reminders, support |
-| Text | Twilio | Opted-in SMS, delivery, and opt-out events |
-| Jobs | Inngest | Reminder schedules and retries |
-| Hosting | Managed HTTPS | Separate development, test, and production |
+| Visitor | Public pages and an invitation | The site is public. There is no invitation page. |
+| Member | Account, wish lists they own, their own assignment, notification choices | Sign-in UI and a per-exchange wish-list row |
+| Organizer | One exchange: invites, exclusions, draw | Device wizard, plus the database Admin screen |
+| Co-organizer | Help manage one exchange | Not built |
+| Support staff | Tickets, account help, and failed email or text, without opening assignments | Not built. Delivery rows exist for organizers only. |
+| Administrator | Merchants, affiliate setup, and who has staff access | Not built. Affiliate codes are per browser. |
 
-What this branch actually runs:
+Next implementation work, in order:
 
-| Part | In the repo now |
-| --- | --- |
-| Interface | React 19, Vite, Tailwind |
-| Login screen | `@netlify/identity` |
-| Database client | `@netlify/database` and Drizzle |
-| Server | `netlify/functions` |
-| Email | Resend, when `RESEND_API_KEY` and `EMAIL_FROM` are set |
-| Text | Twilio, when `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` are set |
-| Hosting config | `netlify.toml` (Node 22) |
-
-Pick one database. The brief’s target is Supabase. The code on this branch uses Netlify Database. Switching is planned work, not a second store of the same exchanges.
-
-## Draw and privacy
-
-The on-device draw lives in `src/utils/shuffle.js`. The server draw for Admin uses that same function from `src/server/assignments.js`. Both require two or more people, skip self-matches, and prefer one giving circle. Exclusions are enforced on the device draw. The server draw does not take exclusions yet.
-
-Still required before this is the launch draw:
-
-- Save one complete draw, and ignore a second click instead of drawing again.
-- Explain an impossible exclusion set before saving or sending.
-- Keep retries of email or text from starting a new draw.
-- After a draw, change the guest list only through an explicit cancel or redraw.
-- Show an assignment only to the signed-in giver. A forwarded link must not reveal it.
+1. Keep the no-account draw. Keep saying that a guest reveal link opens for anyone who has it.
+2. Finish the Netlify Identity and database path on a deploy: create an exchange, sign in as a member, save a wish list, draw with the same exclusion rules as the device draw.
+3. When a signed-in member opens an assignment, require that account. Do not put the recipient’s name in that URL. Leave guest links on the no-account flow.
+4. Store wish lists on the member, and let them attach one to an exchange.
+5. Add co-organizer on a single exchange. Organizers and co-organizers still do not get the pairing list.
+6. Send email and text only after the product rules exist: email from the app, SMS only with that person’s opt-in, and a record of success or failure. Do not start a new draw when a send is retried.
+7. Support staff can see tickets and delivery failures, not assignments. Administrators can manage merchant and affiliate settings and staff access.
+8. Reminders can be scheduled later with Netlify scheduled functions. Replace that only if a real limit shows up.
 
 ## Local development
 
-Requires Node.js 22 and npm.
+Node.js 22 and npm. `netlify.toml` sets Node 22, which `@netlify/identity` expects.
 
 ```bash
 git clone https://github.com/willmac1wm/giftloop-app.git
@@ -105,19 +68,19 @@ npm install
 npm run dev
 ```
 
-Open the local address Vite prints, usually `http://localhost:5173`.
+Vite prints the local address, usually `http://localhost:5173`.
 
 ```bash
 npm run build
 npm run smoke
 ```
 
-`npm run db:generate` writes a database migration. `npm run db:migrate` applies it to a local Netlify database only. Hosted migrations run on deploy. Real Resend, Twilio, and Identity values belong in the host’s environment, not in git. `.env.example` lists the names.
+`npm run db:generate` writes a Drizzle migration. `npm run db:migrate` applies it locally through the Netlify CLI. Do not point that command at production.
 
-## Mobile
+Copy `.env.example` only as a list of names. Put real Resend and Twilio values in the Netlify environment. Do not commit them.
 
-The site is meant to be used in a phone browser. A home-screen install uses the web manifest already in the repo. That is not an App Store build. Capacitor can package the site later, after the exchange flow is tested. Native signing and store review are separate work.
+Capacitor config is `capacitor.config.json`, and the packages are installed. There is no `ios` or `android` project in the repo, and no store build has been verified.
 
 ## License
 
-This repository has no `LICENSE` file. Do not treat the project as MIT-licensed until one is added.
+This repository has no `LICENSE` file.
