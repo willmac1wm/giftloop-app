@@ -18,6 +18,18 @@ export const CENTER_STORES = [
   { id: 'bestbuy', name: 'Best Buy', photo: '/shopping/photo-play.jpg', position: 'center' },
 ];
 
+/** Query keys Gift Loop reads when a full affiliate link is pasted into a store field. */
+export const AFFILIATE_PARAM_KEYS = {
+  amazon: ['tag'],
+  walmart: ['wmlspartner', 'affiliate_id'],
+  basspro: ['affCode'],
+  cabelas: ['affCode'],
+  target: ['afid', 'clkid'],
+  bestbuy: ['irclickid'],
+};
+
+const SAMPLE_CODE_KEYS = ['amazonTag', 'walmartPublisherId', 'bassProPartnerId', 'targetPartnerId', 'bestBuyPartnerId'];
+
 export const SUPPORTED_STORES = [
   { id: 'amazon', name: 'Amazon', domain: 'amazon.com', icon: '📦', color: '#ff9900' },
   { id: 'walmart', name: 'Walmart', domain: 'walmart.com', icon: '🛒', color: '#0071dc' },
@@ -26,6 +38,33 @@ export const SUPPORTED_STORES = [
   { id: 'target', name: 'Target', domain: 'target.com', icon: '🎯', color: '#cc0000' },
   { id: 'bestbuy', name: 'Best Buy', domain: 'bestbuy.com', icon: '⚡', color: '#ffe000' },
 ];
+
+/**
+ * Turns a typed partner code, or a pasted affiliate link, into the id stored for that store.
+ * A plain code is kept. A link is reduced to its partner parameter.
+ */
+export function readAffiliateValue(storeId, raw) {
+  const text = String(raw ?? '').trim();
+  if (!text) return { value: '', status: 'code' };
+  if (!/^https?:\/\//i.test(text)) return { value: text, status: 'code' };
+
+  try {
+    const parsed = new URL(text);
+    const keys = AFFILIATE_PARAM_KEYS[storeId] || [];
+    for (const key of keys) {
+      const value = parsed.searchParams.get(key);
+      if (value && value.trim()) return { value: value.trim(), status: 'code' };
+    }
+    return { value: '', status: 'missing' };
+  } catch {
+    return { value: text, status: 'code' };
+  }
+}
+
+/** True while every store still has the built-in Gift Loop sample code. */
+export function usesSampleAffiliateCodes(config = DEFAULT_AFFILIATE_CONFIG) {
+  return SAMPLE_CODE_KEYS.every((key) => config?.[key] === DEFAULT_AFFILIATE_CONFIG[key]);
+}
 
 /**
  * Loads current affiliate config from localStorage
