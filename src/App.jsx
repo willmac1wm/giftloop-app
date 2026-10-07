@@ -4,6 +4,9 @@ import SecretRevealView from './components/SecretRevealView';
 import IosInstallModal from './components/IosInstallModal';
 import AffiliateSettingsModal from './components/AffiliateSettingsModal';
 import DealBanner from './components/DealBanner';
+import AccountScreen from './components/AccountScreen';
+import AdminScreen from './components/AdminScreen';
+import WishListScreen from './components/WishListScreen';
 import {
   ExchangeScreen,
   EXCHANGE_STORAGE_KEY,
@@ -19,6 +22,10 @@ export default function App() {
   const [snowEnabled, setSnowEnabled] = useState(true);
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [showAffiliateModal, setShowAffiliateModal] = useState(false);
+  const [user, setUser] = useState(null);
+  const [area, setArea] = useState('exchange');
+  const [afterAccount, setAfterAccount] = useState('exchange');
+  const [recovery, setRecovery] = useState(false);
 
   const [exchange, setExchange] = useState(() => {
     try {
@@ -33,6 +40,30 @@ export default function App() {
   // URL Query inspection for direct secret reveal link (e.g. ?view=reveal&t=...)
   const [urlPayload, setUrlPayload] = useState(null);
   const [previewPayload, setPreviewPayload] = useState(null);
+
+  useEffect(() => {
+    let unsubscribe = () => {};
+    let cancel = false;
+    (async () => {
+      try {
+        const identity = await import('@netlify/identity');
+        const callback = await identity.handleAuthCallback();
+        if (cancel) return;
+        if (callback?.type === 'recovery') {
+          setRecovery(true);
+          setArea('account');
+        }
+        setUser(await identity.getUser());
+        unsubscribe = identity.onAuthChange((_event, next) => setUser(next));
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+    return () => {
+      cancel = true;
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -112,6 +143,15 @@ export default function App() {
         onResetDemoData={handleResetDemoData}
         onOpenInstallModal={() => setShowInstallModal(true)}
         onOpenAffiliateModal={() => setShowAffiliateModal(true)}
+        user={user}
+        area={area}
+        onOpenAccount={() => {
+          setAfterAccount(area === 'account' ? 'exchange' : area);
+          setArea('account');
+        }}
+        onOpenAdmin={() => setArea('admin')}
+        onOpenWishlist={() => setArea('wishlist')}
+        onOpenExchange={() => setArea('exchange')}
       />
 
       <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 z-10">
@@ -119,13 +159,49 @@ export default function App() {
       </div>
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 z-10">
-        <ExchangeScreen
-          event={exchange}
-          onUpdateEvent={setExchange}
-          onPreviewReveal={(payload) => setPreviewPayload(payload)}
-          onStartNewExchange={handleStartNewExchange}
-          onLoadSample={handleLoadSampleExchange}
-        />
+        {area === 'account' && (
+          <AccountScreen
+            user={user}
+            recovery={recovery}
+            onSignedIn={(next) => {
+              setUser(next);
+              setRecovery(false);
+              setArea(afterAccount === 'account' ? 'exchange' : afterAccount);
+            }}
+            onSignedOut={() => {
+              setUser(null);
+              setArea('account');
+            }}
+            onBack={() => setArea('exchange')}
+          />
+        )}
+        {area === 'admin' && (
+          <AdminScreen
+            user={user}
+            onNeedAccount={() => {
+              setAfterAccount('admin');
+              setArea('account');
+            }}
+          />
+        )}
+        {area === 'wishlist' && (
+          <WishListScreen
+            user={user}
+            onNeedAccount={() => {
+              setAfterAccount('wishlist');
+              setArea('account');
+            }}
+          />
+        )}
+        {area === 'exchange' && (
+          <ExchangeScreen
+            event={exchange}
+            onUpdateEvent={setExchange}
+            onPreviewReveal={(payload) => setPreviewPayload(payload)}
+            onStartNewExchange={handleStartNewExchange}
+            onLoadSample={handleLoadSampleExchange}
+          />
+        )}
       </main>
 
       <footer className="z-10 py-6 border-t border-white/5 text-center text-xs text-slate-400 no-print hidden sm:block">
