@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 import { Gift, Sparkles, CheckCircle2, Lock, Calendar, DollarSign, Heart, Ban, ArrowLeft, BookmarkCheck, ExternalLink, ShoppingBag } from 'lucide-react';
 import { sound } from '../utils/audio';
-import { applyAffiliateTag, generateStoreSearchUrl, detectStore, SUPPORTED_STORES } from '../utils/affiliate';
+import { applyAffiliateTag, generateStoreSearchUrl, detectStore } from '../utils/affiliate';
 
 export default function SecretRevealView({ payload, onBackToOrganizer }) {
   const [unwrapped, setUnwrapped] = useState(false);
@@ -21,26 +21,36 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
     rules = '',
   } = payload || {};
 
-  // Load private note from localStorage for this specific recipient
+  const noteKey = useMemo(
+    () => `giftloop_note_${encodeURIComponent(giverName)}_${encodeURIComponent(receiverName)}`,
+    [giverName, receiverName],
+  );
+  const purchasedKey = useMemo(
+    () => `giftloop_purchased_${encodeURIComponent(giverName)}_${encodeURIComponent(receiverName)}`,
+    [giverName, receiverName],
+  );
+  const wishlistItems = useMemo(() => (Array.isArray(wishlist) ? wishlist : []), [wishlist]);
+
   useEffect(() => {
     if (giverName && receiverName) {
-      const savedNote = localStorage.getItem(`giftloop_note_${giverName}_${receiverName}`);
+      const savedNote = localStorage.getItem(noteKey);
       if (savedNote) setPersonalNotes(savedNote);
-      const savedPurchased = localStorage.getItem(`giftloop_purchased_${giverName}_${receiverName}`);
+      const savedPurchased = localStorage.getItem(purchasedKey);
       if (savedPurchased === 'true') setPurchased(true);
     }
-  }, [giverName, receiverName]);
+  }, [giverName, receiverName, noteKey, purchasedKey]);
 
   const handleNoteChange = (e) => {
-    setPersonalNotes(e.target.value);
-    localStorage.setItem(`giftloop_note_${giverName}_${receiverName}`, e.target.value);
+    const nextNote = e.target.value;
+    setPersonalNotes(nextNote);
+    localStorage.setItem(noteKey, nextNote);
   };
 
   const handleTogglePurchased = () => {
     sound.playClick();
     const nextVal = !purchased;
     setPurchased(nextVal);
-    localStorage.setItem(`giftloop_purchased_${giverName}_${receiverName}`, String(nextVal));
+    localStorage.setItem(purchasedKey, String(nextVal));
   };
 
   const handleUnwrap = () => {
@@ -48,9 +58,8 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
     sound.playUnwrap();
     setUnwrapped(true);
 
-    // Fire festive holiday confetti
     confetti({
-      particleCount: 120,
+      particleCount: 80,
       spread: 90,
       origin: { y: 0.6 },
       colors: ['#10b981', '#f43f5e', '#fbbf24', '#ffffff', '#38bdf8'],
@@ -58,14 +67,14 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
 
     setTimeout(() => {
       confetti({
-        particleCount: 70,
+        particleCount: 40,
         angle: 60,
         spread: 60,
         origin: { x: 0 },
         colors: ['#10b981', '#fbbf24'],
       });
       confetti({
-        particleCount: 70,
+        particleCount: 40,
         angle: 120,
         spread: 60,
         origin: { x: 1 },
@@ -99,19 +108,16 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
       </div>
 
       {!unwrapped ? (
-        /* The Unwrapped Gift Box interactive stage */
-        <div 
+        <div
           onClick={handleUnwrap}
-          className="cursor-pointer group glass-panel-elevated p-8 sm:p-12 w-full max-w-md flex flex-col items-center text-center relative overflow-hidden transition-all duration-300 hover:scale-[1.02] border-2 border-emerald-500/40 hover:border-emerald-400"
+          className="cursor-pointer group glass-panel-elevated p-8 sm:p-12 w-full max-w-md flex flex-col items-center text-center relative overflow-hidden transition-all duration-300 hover:scale-[1.01]"
           style={{
             background: 'linear-gradient(180deg, rgba(16, 26, 45, 0.95) 0%, rgba(10, 18, 32, 0.98) 100%)',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 35px rgba(16, 185, 129, 0.25)',
           }}
         >
-          {/* Subtle background glow */}
           <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 via-rose-500/10 to-amber-500/10 pointer-events-none" />
 
-          {/* Ribbon effect */}
           <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-tr from-rose-600 to-rose-500 text-white flex items-center justify-center shadow-2xl relative mb-6 animate-gift-float">
             <Gift size={54} className="animate-pulse" />
             <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-amber-400 text-slate-900 flex items-center justify-center font-bold text-xs shadow-md">
@@ -126,7 +132,7 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
             Only you can see who you drew. Click to untie the ribbon and reveal your recipient!
           </p>
 
-          <button 
+          <button
             type="button"
             className="btn btn-primary text-base py-3 px-8 shadow-lg shadow-emerald-500/30 group-hover:shadow-emerald-500/50"
           >
@@ -139,8 +145,7 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
           </div>
         </div>
       ) : (
-        /* The Revealed Recipient Details Card */
-        <div 
+        <div
           className="glass-panel-elevated p-6 sm:p-8 w-full max-w-lg border border-white/20 animate-fade-in relative"
           style={{ background: 'rgba(15, 23, 42, 0.95)' }}
         >
@@ -164,7 +169,6 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
             </div>
           </div>
 
-          {/* Wishlist & Preferences Section */}
           <div className="py-5 space-y-4">
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -174,9 +178,9 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
                 <span className="text-[10px] text-slate-400">1-Click Affiliate Matching</span>
               </div>
 
-              {wishlist && wishlist.length > 0 ? (
+              {wishlistItems.length > 0 ? (
                 <ul className="space-y-2.5">
-                  {wishlist.map((item, idx) => {
+                  {wishlistItems.map((item, idx) => {
                     const isObj = typeof item === 'object' && item !== null;
                     const title = isObj ? item.title : item;
                     const directUrl = isObj ? item.url : (typeof item === 'string' && item.startsWith('http') ? item : null);
@@ -185,7 +189,7 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
 
                     return (
                       <li
-                        key={idx}
+                        key={`${title}-${idx}`}
                         className="text-sm text-slate-200 bg-slate-800/60 p-3 rounded-xl border border-white/5 space-y-2"
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -207,7 +211,6 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
                           )}
                         </div>
 
-                        {/* 1-Click Retailer Search Buttons with Affiliate Tags */}
                         <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-white/5 text-[11px]">
                           <span className="text-[10px] text-slate-400 flex items-center gap-1 mr-1">
                             <ShoppingBag size={11} /> Find & Buy:
@@ -293,7 +296,6 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
               </div>
             )}
 
-            {/* Private Notes & Checklist for Giver */}
             <div className="pt-2">
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs uppercase font-bold tracking-wider text-slate-300 flex items-center gap-1.5">
