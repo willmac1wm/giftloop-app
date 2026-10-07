@@ -78,6 +78,8 @@ Git-based builds are configured for that one branch. They currently fail while p
 
 Set Resend and Twilio only in the Netlify UI for this project, as secrets, for the functions runtime. The names are in `.env.example`. Leave the example values empty. Do not commit a `.env` file.
 
+`NETLIFY_DB_URL` is also set there, as a secret. The Netlify database API for this project returns the `netlifydb_readonly` connection string. Migration `20261007235000_app_role_grants` grants that role the writes the exchange needs. Do not paste the connection string into git or chat.
+
 ## Local development
 
 Node.js 22 and npm. `netlify.toml` sets Node 22, which `@netlify/identity` expects.
