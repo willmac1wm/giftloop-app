@@ -147,6 +147,7 @@ export default function App() {
 
       {/* Affiliate Partner & Store Settings Modal */}
       <AffiliateSettingsModal
+        key={showAffiliateModal ? 'affiliate-open' : 'affiliate-closed'}
         isOpen={showAffiliateModal}
         onClose={() => setShowAffiliateModal(false)}
       />

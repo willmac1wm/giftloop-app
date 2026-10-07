@@ -71,7 +71,7 @@ export default function Navbar({
               onOpenAffiliateModal && onOpenAffiliateModal();
             }}
             className="btn btn-secondary text-xs py-2 px-2.5 text-amber-400 hover:text-white"
-            title="Configure Amazon, Walmart, Bass Pro Affiliate Tags"
+            title="Paste Amazon, Walmart, Target, Bass Pro, Cabela's, and Best Buy affiliate codes"
           >
             <Tag size={13} />
             <span className="hidden md:inline">Affiliate Tags</span>

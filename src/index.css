@@ -767,6 +767,10 @@ h1, h2, h3, h4, .font-heading {
   font-size: 0.8rem;
 }
 
+.deal-banner-note {
+  color: #fde68a;
+}
+
 .deal-banner-stores {
   display: flex;
   flex-wrap: wrap;

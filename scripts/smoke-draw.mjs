@@ -17,7 +17,12 @@ import {
 import { generateSecretSantaDraw } from '../src/utils/shuffle.js';
 import { buildRevealPayload, emailHref, smsHref } from '../src/utils/revealLink.js';
 import { decodeSecretPayload, encodeSecretPayload } from '../src/utils/crypto.js';
-import { DEFAULT_AFFILIATE_CONFIG, generateStoreSearchUrl } from '../src/utils/affiliate.js';
+import {
+  DEFAULT_AFFILIATE_CONFIG,
+  generateStoreSearchUrl,
+  readAffiliateValue,
+  usesSampleAffiliateCodes,
+} from '../src/utils/affiliate.js';
 import { dealLinks, isPrimeBigDealDays } from '../src/utils/deals.js';
 import { ideasWithinBudget, shopQuery } from '../src/utils/shop.js';
 import { filterGifts } from '../src/utils/giftFinder.js';
@@ -177,6 +182,20 @@ assert(duringSale.stores[0].href.includes('primebigdealdays') && duringSale.stor
 assert(duringSale.stores.every((store) => store.href.includes('giftloop')), 'every deal link carries a referral id');
 const cabelas = generateStoreSearchUrl('wool socks', 'cabelas', DEFAULT_AFFILIATE_CONFIG);
 assert(cabelas.includes('cabelas.com') && cabelas.includes('affCode=giftloop'), cabelas);
+
+const pastedAmazon = readAffiliateValue('amazon', 'https://www.amazon.com/s?k=socks&tag=mytag-20');
+assert(pastedAmazon.value === 'mytag-20' && pastedAmazon.status === 'code', JSON.stringify(pastedAmazon));
+assert(readAffiliateValue('amazon', '  mytag-20  ').value === 'mytag-20', 'plain amazon code');
+assert(readAffiliateValue('walmart', 'https://www.walmart.com/search?q=hat&wmlspartner=pub123').value === 'pub123', 'walmart link');
+assert(readAffiliateValue('basspro', 'https://www.cabelas.com/shop/en/SearchDisplay?searchTerm=tent&affCode=outdoor1').value === 'outdoor1', 'cabelas link');
+assert(readAffiliateValue('target', 'https://www.target.com/s?searchTerm=mug&clkid=tgt9').value === 'tgt9', 'target link');
+assert(readAffiliateValue('bestbuy', 'https://www.bestbuy.com/site/searchpage.jsp?st=headphones&irclickid=bb42').value === 'bb42', 'best buy link');
+assert(readAffiliateValue('amazon', 'https://www.amazon.com/s?k=socks').status === 'missing', 'link without a tag');
+const customCodes = { ...DEFAULT_AFFILIATE_CONFIG, amazonTag: 'mytag-20', bestBuyPartnerId: 'bb42' };
+assert(generateStoreSearchUrl('wool socks', 'amazon', customCodes).includes('tag=mytag-20'), 'custom amazon search');
+assert(generateStoreSearchUrl('headphones', 'bestbuy', customCodes).includes('irclickid=bb42'), 'custom best buy search');
+assert(usesSampleAffiliateCodes(DEFAULT_AFFILIATE_CONFIG), 'defaults are the sample codes');
+assert(!usesSampleAffiliateCodes(customCodes), 'a replaced tag is no longer the sample set');
 const afterSale = dealLinks(DEFAULT_AFFILIATE_CONFIG, new Date('2026-10-09T00:00:00.000Z'));
 assert(!afterSale.live && afterSale.stores[0].href.includes('/deals'), afterSale.stores[0].href);
 assert(isPrimeBigDealDays(new Date('2026-10-07T20:00:00.000Z')), 'sale still open on Oct 7 evening Pacific');
