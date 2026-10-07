@@ -19,6 +19,7 @@ export function createNameRow(partial = {}) {
     ageBand: '',
     shopFor: '',
     wishes: '',
+    hobbies: '',
     ...partial,
   };
 }
@@ -44,6 +45,7 @@ export function createBlankSecretSantaEvent() {
     organizerAgeBand: '',
     organizerShopFor: '',
     organizerWishes: '',
+    organizerHobbies: '',
     includeOrganizer: true,
     nameRows: [createNameRow(), createNameRow()],
     exclusionsChoice: null,
@@ -64,7 +66,6 @@ export function materializeParticipants(event) {
   if (event.includeOrganizer !== false && organizerName && event.organizerId) {
     const prev = existing.get(event.organizerId) || {};
     next.push({
-      likes: '',
       dislikes: '',
       ...prev,
       id: event.organizerId,
@@ -75,6 +76,7 @@ export function materializeParticipants(event) {
       ageBand: event.organizerAgeBand || '',
       shopFor: event.organizerShopFor || '',
       wishlist: wishLines(event.organizerWishes, prev.wishlist),
+      likes: textOrPrevious(event.organizerHobbies, prev.likes),
       isOrganizer: true,
     });
   }
@@ -84,7 +86,6 @@ export function materializeParticipants(event) {
     if (!name) continue;
     const prev = existing.get(row.id) || {};
     next.push({
-      likes: '',
       dislikes: '',
       ...prev,
       id: row.id,
@@ -95,6 +96,7 @@ export function materializeParticipants(event) {
       ageBand: row.ageBand || '',
       shopFor: row.shopFor || '',
       wishlist: wishLines(row.wishes, prev.wishlist),
+      likes: textOrPrevious(row.hobbies, prev.likes),
       isOrganizer: false,
     });
   }
@@ -125,6 +127,11 @@ export function withGiverContact(event, giverId, fields) {
 function wishLines(text, previous) {
   if (text == null || String(text).trim() === '') return previous || [];
   return String(text).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+}
+
+function textOrPrevious(text, previous) {
+  if (text == null || String(text).trim() === '') return previous || '';
+  return String(text).trim();
 }
 
 const EMAIL_IN_LINE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;

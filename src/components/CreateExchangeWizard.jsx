@@ -29,7 +29,6 @@ import {
   isDetailsComplete,
   occasionById,
 } from '../data/exchangePresets';
-import { AGE_BANDS, SHOP_FOR } from '../data/giftProfile';
 import {
   WIZARD_STEPS,
   applyImportedPeople,
@@ -39,6 +38,7 @@ import {
   pruneExclusions,
 } from '../data/eventState';
 import RevealLinksPanel from './RevealLinksPanel';
+import GiftFinder from './GiftFinder';
 
 const PROGRESS_STEPS = [
   { id: 'names', label: 'Names' },
@@ -152,7 +152,7 @@ export default function CreateExchangeWizard({
   };
 
   return (
-    <div className={`wizard-shell ${step === 'share' ? 'wizard-shell-wide' : ''}`}>
+    <div className={`wizard-shell ${step === 'share' || step === 'wishes' ? 'wizard-shell-wide' : ''}`}>
       {step !== 'start' && (
         <ol className="wizard-progress" aria-label="Create exchange steps">
           {PROGRESS_STEPS.map((item) => {
@@ -540,6 +540,7 @@ function profilePatch(event, person, fields) {
       organizerAgeBand: fields.ageBand !== undefined ? fields.ageBand : event.organizerAgeBand,
       organizerShopFor: fields.shopFor !== undefined ? fields.shopFor : event.organizerShopFor,
       organizerWishes: fields.wishes !== undefined ? fields.wishes : event.organizerWishes,
+      organizerHobbies: fields.hobbies !== undefined ? fields.hobbies : event.organizerHobbies,
     };
   }
   return {
@@ -547,69 +548,53 @@ function profilePatch(event, person, fields) {
   };
 }
 
+function personFields(event, person) {
+  if (person.isOrganizer) {
+    return {
+      listTitle: event.organizerListTitle || '',
+      ageBand: event.organizerAgeBand || '',
+      shopFor: event.organizerShopFor || '',
+      wishes: event.organizerWishes || '',
+      hobbies: event.organizerHobbies || '',
+    };
+  }
+  const row = (event.nameRows || []).find((item) => item.id === person.id) || {};
+  return {
+    listTitle: row.listTitle || '',
+    ageBand: row.ageBand || '',
+    shopFor: row.shopFor || '',
+    wishes: row.wishes || '',
+    hobbies: row.hobbies || '',
+  };
+}
+
 function WishesStep({ event, patch, onBack, onContinue }) {
   const people = materializeParticipants(event);
+  const [activeId, setActiveId] = useState(people[0]?.id || '');
+  const person = people.find((item) => item.id === activeId) || people[0];
+  const fields = person ? personFields(event, person) : {};
   return (
-    <StepCard
-      title="Wish lists"
-      lede="A list name, an age, and who the gifts are for help the store search. You can skip this and add wishes later."
-    >
-      <div className="space-y-3">
-        {people.map((person) => {
-          const wishes = person.isOrganizer ? (event.organizerWishes || '') : ((event.nameRows || []).find((row) => row.id === person.id)?.wishes || '');
-          const listTitle = person.isOrganizer ? (event.organizerListTitle || '') : ((event.nameRows || []).find((row) => row.id === person.id)?.listTitle || '');
-          const ageBand = person.isOrganizer ? (event.organizerAgeBand || '') : ((event.nameRows || []).find((row) => row.id === person.id)?.ageBand || '');
-          const shopFor = person.isOrganizer ? (event.organizerShopFor || '') : ((event.nameRows || []).find((row) => row.id === person.id)?.shopFor || '');
-          const update = (fields) => patch(profilePatch(event, person, fields));
-          return (
-            <div key={person.id} className="friend-card">
-              <div className="text-sm font-semibold text-white">{person.name}</div>
-              <input
-                type="text"
-                value={listTitle}
-                onChange={(e) => update({ listTitle: e.target.value })}
-                placeholder={`${person.name}'s list`}
-                aria-label={`${person.name} wish list name`}
-                className="glass-input w-full text-sm"
-              />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <select
-                  value={ageBand}
-                  onChange={(e) => update({ ageBand: e.target.value })}
-                  aria-label={`${person.name} age`}
-                  className="glass-input w-full text-sm"
-                >
-                  <option value="">Age</option>
-                  {AGE_BANDS.map((band) => (
-                    <option key={band.id} value={band.id}>{band.label}</option>
-                  ))}
-                </select>
-                <select
-                  value={shopFor}
-                  onChange={(e) => update({ shopFor: e.target.value })}
-                  aria-label={`${person.name} who the gifts are for`}
-                  className="glass-input w-full text-sm"
-                >
-                  <option value="">Who are the gifts for?</option>
-                  {SHOP_FOR.map((item) => (
-                    <option key={item.id} value={item.id}>{item.label}</option>
-                  ))}
-                </select>
-              </div>
-              <textarea
-                value={wishes}
-                onChange={(e) => update({ wishes: e.target.value })}
-                rows={3}
-                placeholder={'Wool socks\nBoard game\nCandle'}
-                aria-label={`${person.name} wishes`}
-                className="glass-input w-full text-sm"
-              />
-            </div>
-          );
-        })}
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-2xl font-bold font-heading text-white">Gift finder</h2>
+        <p className="text-sm text-slate-300 mt-1">
+          Filter by price, age, and who the gift is for. Add picks to their list. Nothing here needs an account.
+        </p>
       </div>
+      {person && (
+        <GiftFinder
+          key={person.id}
+          people={people}
+          activePersonId={person.id}
+          onSelectPerson={setActiveId}
+          personName={person.name}
+          budget={event.budget}
+          onChange={(partial) => patch(profilePatch(event, person, partial))}
+          {...fields}
+        />
+      )}
       <StepNav onBack={onBack} onContinue={onContinue} continueLabel="Save wish lists" />
-    </StepCard>
+    </div>
   );
 }
 

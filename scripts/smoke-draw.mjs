@@ -20,6 +20,7 @@ import { decodeSecretPayload, encodeSecretPayload } from '../src/utils/crypto.js
 import { DEFAULT_AFFILIATE_CONFIG, generateStoreSearchUrl } from '../src/utils/affiliate.js';
 import { dealLinks, isPrimeBigDealDays } from '../src/utils/deals.js';
 import { ideasWithinBudget, shopQuery } from '../src/utils/shop.js';
+import { filterGifts } from '../src/utils/giftFinder.js';
 
 function assert(condition, message) {
   if (!condition) {
@@ -197,6 +198,12 @@ const query = shopQuery({
   shopFor: 'woman',
 });
 assert(query.includes('woman') && query.includes('under $25'), query);
+const forKids = filterGifts({ ageBand: 'child', shopFor: 'anyone' });
+assert(forKids.length > 0 && forKids.every((item) => item.ages.includes('child')), 'child filter');
+const underFifteen = filterGifts({ maxPrice: 15 });
+assert(underFifteen.every((item) => item.priceValue <= 15), 'price filter');
+const forMen = filterGifts({ shopFor: 'man' });
+assert(forMen.every((item) => item.shopFor !== 'woman'), 'man filter hides gifts tagged for women');
 const ideas = ideasWithinBudget('$25');
 assert(ideas.length >= 3, 'shop ideas for a $25 budget');
 assert(ideas.every((item) => item.priceValue <= 30), `idea over budget: ${ideas.map((item) => item.price).join(', ')}`);
