@@ -30,12 +30,13 @@ function entryFromLocation() {
     const view = params.get('view');
     const token = params.get('t') || '';
     return {
-      inviteCode: view === 'invite' ? params.get('code') || '' : '',
+      inviteCode: view === 'invite' || view === 'join' ? params.get('code') || '' : '',
+      openJoin: view === 'join',
       assignmentExchangeId: view === 'assignment' ? params.get('exchange') || '' : '',
       revealPayload: view === 'reveal' && token ? decodeSecretPayload(token) : null,
     };
   } catch {
-    return { inviteCode: '', assignmentExchangeId: '', revealPayload: null };
+    return { inviteCode: '', openJoin: false, assignmentExchangeId: '', revealPayload: null };
   }
 }
 
@@ -68,6 +69,7 @@ export default function App() {
   const [urlPayload, setUrlPayload] = useState(() => entryFromLocation().revealPayload);
   const [previewPayload, setPreviewPayload] = useState(null);
   const [inviteCode, setInviteCode] = useState(() => entryFromLocation().inviteCode);
+  const [openJoin, setOpenJoin] = useState(() => entryFromLocation().openJoin);
   const [assignmentExchangeId, setAssignmentExchangeId] = useState(() => entryFromLocation().assignmentExchangeId);
   const [whiteElephant, setWhiteElephant] = useState(() => {
     try {
@@ -110,7 +112,10 @@ export default function App() {
       const params = new URLSearchParams(window.location.search);
       const view = params.get('view');
       const token = params.get('t');
-      if (view === 'invite') setInviteCode(params.get('code') || '');
+      if (view === 'invite' || view === 'join') {
+        setInviteCode(params.get('code') || '');
+        setOpenJoin(view === 'join');
+      }
       if (view === 'assignment') setAssignmentExchangeId(params.get('exchange') || '');
       if (view === 'reveal' && token) {
         const decoded = decodeSecretPayload(token);
@@ -234,6 +239,7 @@ export default function App() {
         {area === 'invite' && inviteCode && (
           <InviteScreen
             code={inviteCode}
+            openJoin={openJoin}
             user={user}
             onNeedAccount={() => {
               setAfterAccount('invite');

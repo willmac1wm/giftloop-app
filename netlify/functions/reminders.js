@@ -23,6 +23,12 @@ export default async function handler() {
   const origin = String(Netlify.env.get("URL") || Netlify.env.get("DEPLOY_PRIME_URL") || "").replace(/\/$/, "");
 
   for (const job of jobs) {
+    const [claimed] = await db
+      .update(notificationJobs)
+      .set({ status: "sending" })
+      .where(and(eq(notificationJobs.id, job.id), eq(notificationJobs.status, "pending")))
+      .returning();
+    if (!claimed) continue;
     const [person] = await db.select().from(members).where(eq(members.id, job.memberId)).limit(1);
     const [exchange] = person
       ? await db.select().from(exchanges).where(eq(exchanges.id, person.exchangeId)).limit(1)
@@ -50,7 +56,13 @@ export default async function handler() {
       sentCount: prior.length,
       resend: false,
       memberStatus: person.status,
+      now,
+      timeZone: exchange.timezone || "America/Los_Angeles",
     });
+    if (decision.defer) {
+      await db.update(notificationJobs).set({ status: "pending", runAt: decision.runAt, detail: decision.reason }).where(eq(notificationJobs.id, job.id));
+      continue;
+    }
     if (!decision.send) {
       await db.update(notificationJobs).set({ status: "cancelled", detail: decision.reason }).where(eq(notificationJobs.id, job.id));
       continue;

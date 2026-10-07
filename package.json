@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "smoke": "node scripts/smoke-draw.mjs",
+    "test:integration": "node scripts/integration-api.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "netlify database migrations apply"
   },

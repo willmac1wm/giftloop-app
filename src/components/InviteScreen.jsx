@@ -2,14 +2,14 @@ import React, { useEffect, useState } from "react";
 import { Mail } from "lucide-react";
 import { api } from "../account/api";
 
-export default function InviteScreen({ code, user, onNeedAccount, onDone }) {
+export default function InviteScreen({ code, user, onNeedAccount, onDone, openJoin = false }) {
   const [invite, setInvite] = useState(null);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
 
   useEffect(() => {
     let cancel = false;
-    api(`/api/invites/${encodeURIComponent(code)}`)
+    api(openJoin ? `/api/join/${encodeURIComponent(code)}` : `/api/invites/${encodeURIComponent(code)}`)
       .then((data) => {
         if (!cancel) setInvite(data);
       })
@@ -19,10 +19,16 @@ export default function InviteScreen({ code, user, onNeedAccount, onDone }) {
     return () => {
       cancel = true;
     };
-  }, [code]);
+  }, [code, openJoin]);
 
   const respond = (action) => {
     setError("");
+    if (openJoin) {
+      api(`/api/join/${encodeURIComponent(code)}/request`, { method: "POST", json: { name: user?.name || "" } })
+        .then((data) => setStatus(data.status))
+        .catch((err) => setError(err.message));
+      return;
+    }
     const path = action === "accept" ? "accept" : "decline";
     api(`/api/invites/${encodeURIComponent(code)}/${path}`, { method: "POST", json: {} })
       .then((data) => {
@@ -39,7 +45,9 @@ export default function InviteScreen({ code, user, onNeedAccount, onDone }) {
         <h2 className="text-xl font-bold font-heading text-white">Invitation</h2>
       </div>
       <p className="text-sm text-slate-300">
-        This link asks you to join an exchange. It does not show anyone’s assignment.
+        {invite?.warning || (openJoin
+          ? "Anyone with this link can ask to join. The organizer chooses who is drawn. This link does not show assignments."
+          : "This is a private invitation. It does not show anyone’s assignment.")}
       </p>
       {error && <p className="text-sm text-rose-300" role="alert">{error}</p>}
       {invite && (
@@ -54,9 +62,9 @@ export default function InviteScreen({ code, user, onNeedAccount, onDone }) {
       )}
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn btn-gold text-sm" onClick={() => (user ? respond("accept") : onNeedAccount())}>
-          {user ? "Accept" : "Sign in to accept"}
+          {user ? (openJoin ? "Ask to join" : "Accept") : "Sign in to continue"}
         </button>
-        <button type="button" className="btn btn-secondary text-sm" onClick={() => respond("decline")}>Decline</button>
+        {!openJoin && <button type="button" className="btn btn-secondary text-sm" onClick={() => respond("decline")}>Decline</button>}
       </div>
     </section>
   );

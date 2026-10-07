@@ -19,6 +19,7 @@ export function providerEnv() {
   return {
     RESEND_API_KEY: Netlify.env.get("RESEND_API_KEY") || "",
     EMAIL_FROM: Netlify.env.get("EMAIL_FROM") || "",
+    RESEND_WEBHOOK_SECRET: Netlify.env.get("RESEND_WEBHOOK_SECRET") || "",
     TWILIO_ACCOUNT_SID: Netlify.env.get("TWILIO_ACCOUNT_SID") || "",
     TWILIO_AUTH_TOKEN: Netlify.env.get("TWILIO_AUTH_TOKEN") || "",
     TWILIO_FROM_NUMBER: Netlify.env.get("TWILIO_FROM_NUMBER") || "",

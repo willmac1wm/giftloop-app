@@ -32,6 +32,10 @@ export function invitationNotice({ title, url }) {
   return `You are invited to ${title || "a Secret Santa"}.\n\nOpen this link to accept or decline. It does not reveal any assignments:\n${url}`;
 }
 
+export function wishListNotice({ title, url }) {
+  return `A wish list for ${title || "Secret Santa"} is ready.\n\nOpen it in GiftLoop. Later edits stay on this page:\n${url}\n\nThis message does not include a store link or an assignment.`;
+}
+
 export function wishLines(value) {
   return String(value || "")
     .split("\n")

@@ -135,7 +135,8 @@ export default function AdminScreen({ user, onNeedAccount }) {
       setDetail(data);
       const accepted = (data.results || []).filter((row) => row.status === "accepted" || row.status === "sent" || row.status === "delivered").length;
       const failed = (data.results || []).filter((row) => row.status === "failed").length;
-      setNotice(`${channel === "email" ? "Email" : "Text"} finished. ${accepted} accepted by the provider, ${failed} failed. Accepted is not the same as delivered.`);
+      const deferred = (data.results || []).filter((row) => row.status === "deferred").length;
+      setNotice(`${channel === "email" ? "Email" : "Text"} finished. ${accepted} accepted by the provider, ${failed} failed, ${deferred} waiting until morning. Accepted is not the same as delivered.`);
     });
   };
 
@@ -220,9 +221,14 @@ export default function AdminScreen({ user, onNeedAccount }) {
                     {member.hasWishes ? <span className="text-emerald-300"> · wishes</span> : <span> · no wishes yet</span>}
                     {member.inviteToken ? <span className="block text-xs text-slate-500 break-all">Invite code {member.inviteToken}</span> : null}
                   </span>
-                  {!exchange.drawn && (
-                    <button type="button" className="text-xs text-rose-300" onClick={() => removePerson(member.id)}>Remove</button>
-                  )}
+                  <span className="flex gap-2">
+                    {member.status === "requested" && !exchange.drawn && (
+                      <button type="button" className="text-xs text-emerald-300" onClick={() => run(() => api(`/api/exchanges/${selectedId}/members/${member.id}/accept`, { method: "POST", json: {} }).then(setDetail))}>Accept</button>
+                    )}
+                    {!exchange.drawn && (
+                      <button type="button" className="text-xs text-rose-300" onClick={() => removePerson(member.id)}>Remove</button>
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -261,6 +267,11 @@ export default function AdminScreen({ user, onNeedAccount }) {
                 <button className="btn btn-secondary text-xs" type="submit">Add exclusion</button>
               </form>
             )}
+            {exchange.joinOpen && exchange.joinToken && (
+              <p className="text-xs text-slate-300 break-all">
+                Open join link: {`${window.location.origin}/?view=join&code=${exchange.joinToken}`}. Anyone with this link can ask to join. It does not show assignments.
+              </p>
+            )}
             {(detail.exclusions || []).length > 0 && (
               <ul className="text-xs text-slate-300">
                 {detail.exclusions.map((rule) => (
@@ -278,6 +289,25 @@ export default function AdminScreen({ user, onNeedAccount }) {
               </button>
               <button type="button" className="btn btn-secondary text-xs" onClick={() => notify("sms", "assignment")} disabled={busy || !exchange.drawn || !providers?.smsReady}>
                 <MessageSquare size={14} /> Text people who opted in
+              </button>
+              <button type="button" className="btn btn-secondary text-xs" onClick={() => notify("email", "wishlist")} disabled={busy || !exchange.drawn || !providers?.emailReady}>
+                <Mail size={14} /> Email the wish-list link
+              </button>
+              <button type="button" className="btn btn-secondary text-xs" onClick={() => notify("sms", "wishlist")} disabled={busy || !exchange.drawn || !providers?.smsReady}>
+                <MessageSquare size={14} /> Text the wish-list link
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary text-xs"
+                disabled={busy}
+                onClick={() => run(() => api(`/api/exchanges/${selectedId}/join`, { method: "POST", json: { open: !exchange.joinOpen } }).then((data) => {
+                  setDetail(data);
+                  setNotice(data.exchange?.joinOpen
+                    ? "Open join is on. Anyone with that link can ask to join. You still choose who is drawn."
+                    : "Open join is off.");
+                }))}
+              >
+                {exchange.joinOpen ? "Close open join" : "Open join link"}
               </button>
               <button
                 type="button"

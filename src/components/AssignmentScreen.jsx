@@ -54,9 +54,19 @@ export default function AssignmentScreen({ exchangeId, user, onNeedAccount }) {
                 <p className="text-white">{item.title}</p>
                 {item.size || item.color ? <p className="text-xs text-slate-400">{[item.size, item.color].filter(Boolean).join(" · ")}</p> : null}
                 {item.notes && <p className="text-slate-300">{item.notes}</p>}
-                {item.shoppingUrl && (
-                  <a className="text-sky-300 text-xs" href={item.shoppingUrl} target="_blank" rel="noopener noreferrer">Shop this gift</a>
-                )}
+                <button
+                  type="button"
+                  className="text-sky-300 text-xs"
+                  onClick={() => api(`/api/wish-items/${item.id}/shop`, { method: "POST", json: {} }).then((data) => {
+                    if (!data.shoppingUrl) {
+                      setError("This gift has no store link.");
+                      return;
+                    }
+                    window.open(data.shoppingUrl, "_blank", "noopener");
+                  }).catch((err) => setError(err.message))}
+                >
+                  Shop at {item.retailer || "the store"}
+                </button>
                 <p className="text-[11px] text-slate-500">Opening the store does not mark this gift purchased.</p>
                 <p className="text-xs text-slate-400 mt-1">{item.reserved ? "Reserved" : "Available"}</p>
                 {!item.reserved && (

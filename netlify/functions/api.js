@@ -25,10 +25,11 @@ import {
   supportLookupView,
   withoutPairings,
 } from "../../src/server/access.js";
-import { assignmentNotice, invitationNotice, planDraw, wishLines } from "../../src/server/assignments.js";
+import { assignmentNotice, invitationNotice, planDraw, wishLines, wishListNotice } from "../../src/server/assignments.js";
 import { normalizeSmsTo, providerEnv, readProviders, sendEmail, sendSms } from "../../src/server/messages.js";
 import { deliveryDecision, reminderRunAt } from "../../src/server/notifyPolicy.js";
 import { DEFAULT_MERCHANTS, finalizeShoppingLink } from "../../src/server/shoppingLink.js";
+import { validResendSignature } from "../../src/server/resendWebhook.js";
 import { SMS_STOP_WORDS, validTwilioSignature } from "../../src/server/twilio.js";
 import { DEFAULT_AFFILIATE_CONFIG } from "../../src/utils/affiliate.js";
 
@@ -120,6 +121,8 @@ async function exchangePayload(exchange) {
       drawn: Boolean(exchange.drawnAt),
       drawReady: accepted.length >= 2 && !exchange.drawnAt,
       includedCount: accepted.length,
+      joinOpen: Boolean(exchange.joinOpen),
+      joinToken: exchange.joinToken || "",
     },
     members: people.map(memberView),
     exclusions: rules.map((rule) => ({
@@ -368,8 +371,10 @@ async function prefsFor(userId) {
 }
 
 async function handleNotify(exchange, body, req, context) {
-  const kind = body.kind === "invite" ? "invite" : "assignment";
-  if (kind === "assignment" && !exchange.drawnAt) return json({ error: "Draw names before sending assignment notices." }, 400);
+  const kind = body.kind === "invite" ? "invite" : body.kind === "wishlist" ? "wishlist" : "assignment";
+  if ((kind === "assignment" || kind === "wishlist") && !exchange.drawnAt) {
+    return json({ error: "Draw names before sending assignment notices." }, 400);
+  }
   const channel = body.channel === "sms" ? "sms" : body.channel === "email" ? "email" : "";
   if (!channel) return json({ error: "Choose email or text." }, 400);
   const env = providerEnv();
@@ -404,7 +409,22 @@ async function handleNotify(exchange, body, req, context) {
       sentCount: prior.length,
       resend: body.resend === true,
       memberStatus: person.status,
+      now: new Date(),
+      timeZone: exchange.timezone || "America/Los_Angeles",
     });
+    if (decision.defer) {
+      await db.insert(notificationJobs).values({
+        exchangeId: exchange.id,
+        memberId: person.id,
+        channel,
+        kind,
+        runAt: decision.runAt,
+        status: "pending",
+        detail: decision.reason,
+      });
+      results.push({ name: person.name, status: "deferred" });
+      continue;
+    }
     const address = channel === "email" ? person.email : prefs?.phone || "";
     if (!decision.send || !address) {
       const reason = !address && decision.send ? "No address on file." : decision.reason;
@@ -419,12 +439,21 @@ async function handleNotify(exchange, body, req, context) {
       : `${origin}/?view=assignment&exchange=${exchange.id}`;
     const text = kind === "invite"
       ? invitationNotice({ title: exchange.title, url })
-      : assignmentNotice({ title: exchange.title, url });
+      : kind === "wishlist"
+        ? wishListNotice({ title: exchange.title, url })
+        : assignmentNotice({ title: exchange.title, url });
+    const subject = kind === "invite"
+      ? `Invitation to ${exchange.title}`
+      : kind === "wishlist"
+        ? `A wish list is ready for ${exchange.title}`
+        : kind === "reminder"
+          ? `Reminder for ${exchange.title}`
+          : "Your recipient is ready";
     try {
       const providerMessageId = channel === "email"
         ? await sendEmail({
           to: person.email,
-          subject: kind === "invite" ? `Invitation to ${exchange.title}` : kind === "reminder" ? `Reminder for ${exchange.title}` : "Your recipient is ready",
+          subject,
           text,
           env,
         })
@@ -535,11 +564,15 @@ async function handleInviteGet(token) {
   if (!member) return json({ error: "That invitation was not found." }, 404);
   const [exchange] = await db.select().from(exchanges).where(eq(exchanges.id, member.exchangeId)).limit(1);
   return json({
+    kind: "private",
     exchangeTitle: exchange?.title || "Secret Santa",
     eventDate: exchange?.eventDate || "",
     budget: exchange?.budget || "",
     name: member.name,
     status: member.status,
+    warning: member.email
+      ? "This private invitation works only for the confirmed account with the email the organizer entered. It does not show assignments."
+      : "This invitation has no email address, so it cannot be accepted. Ask the organizer to add the guest's email, or use an open join link.",
   });
 }
 
@@ -882,6 +915,32 @@ async function handleMerchantAdmin(user, method, body) {
   return json({ merchants: await loadMerchants() });
 }
 
+async function handleResend(req) {
+  const text = await req.text();
+  const env = providerEnv();
+  const id = req.headers.get("svix-id") || "";
+  const timestamp = req.headers.get("svix-timestamp") || "";
+  const signature = req.headers.get("svix-signature") || "";
+  if (!validResendSignature({ id, timestamp, body: text, secret: env.RESEND_WEBHOOK_SECRET, signature })) {
+    return json({ error: "That request was not accepted." }, 403);
+  }
+  let payload;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    return json({ error: "That request was not valid JSON." }, 400);
+  }
+  const emailId = payload?.data?.email_id || "";
+  const type = payload?.type || "";
+  if (emailId && type === "email.delivered") {
+    await db.update(deliveries).set({ status: "delivered", detail: "Resend reported delivered." }).where(eq(deliveries.providerMessageId, emailId));
+  }
+  if (emailId && (type === "email.bounced" || type === "email.complained" || type === "email.failed")) {
+    await db.update(deliveries).set({ status: "failed", detail: `Resend reported ${type}.` }).where(eq(deliveries.providerMessageId, emailId));
+  }
+  return new Response("ok");
+}
+
 async function handleTwilio(req) {
   const text = await req.text();
   const params = Object.fromEntries(new URLSearchParams(text));
@@ -918,6 +977,95 @@ async function handleTwilio(req) {
   return new Response("ok");
 }
 
+async function handleSetJoin(exchange, body) {
+  const joinToken = exchange.joinToken || crypto.randomUUID();
+  await db.update(exchanges).set({ joinOpen: body.open === true, joinToken }).where(eq(exchanges.id, exchange.id));
+  const [updated] = await db.select().from(exchanges).where(eq(exchanges.id, exchange.id)).limit(1);
+  return json(await exchangePayload(updated));
+}
+
+async function handleAcceptRequested(exchange, memberId) {
+  if (exchange.drawnAt) return json({ error: "Cancel the draw before changing who is included." }, 409);
+  if (!UUID.test(memberId)) return json({ error: "That person was not found." }, 404);
+  const [person] = await db.select().from(members).where(and(eq(members.id, memberId), eq(members.exchangeId, exchange.id))).limit(1);
+  if (!person) return json({ error: "That person was not found." }, 404);
+  if (person.status !== "requested") return json({ error: "Only a requested guest can be accepted this way." }, 409);
+  await db.update(members).set({ status: "accepted" }).where(eq(members.id, person.id));
+  return json(await exchangePayload(exchange));
+}
+
+async function handleJoinGet(token) {
+  const [exchange] = await db.select().from(exchanges).where(eq(exchanges.joinToken, token)).limit(1);
+  if (!exchange?.joinOpen) return json({ error: "That join link was not found." }, 404);
+  return json({
+    kind: "open",
+    exchangeTitle: exchange.title,
+    eventDate: exchange.eventDate || "",
+    budget: exchange.budget || "",
+    signupDeadline: exchange.signupDeadline || "",
+    warning: "Anyone with this link can ask to join. The organizer chooses who is drawn. This link does not show assignments.",
+  });
+}
+
+async function handleJoinRequest(user, token, body) {
+  const [exchange] = await db.select().from(exchanges).where(and(eq(exchanges.joinToken, token), eq(exchanges.joinOpen, true))).limit(1);
+  if (!exchange) return json({ error: "That join link was not found." }, 404);
+  if (exchange.drawnAt) return json({ error: "Names are already drawn. Ask the organizer before joining." }, 409);
+  const today = new Date().toISOString().slice(0, 10);
+  if (exchange.signupDeadline && exchange.signupDeadline < today) {
+    return json({ error: "The signup deadline has passed." }, 409);
+  }
+  const decision = acceptDecision({ user, openJoin: true });
+  if (!decision.ok) return json({ error: decision.error }, decision.status);
+  const email = user.email.toLowerCase();
+  const [existing] = await db.select().from(members).where(and(eq(members.exchangeId, exchange.id), sql`lower(${members.email}) = ${email}`)).limit(1);
+  if (existing) return json({ status: existing.status, exchangeId: exchange.id });
+  await db.insert(members).values({
+    exchangeId: exchange.id,
+    userId: user.id,
+    name: clip(body.name, 80) || clip(user.name, 80) || "Guest",
+    email,
+    status: "requested",
+    inviteToken: crypto.randomUUID(),
+    exchangeRole: "member",
+  });
+  return json({ status: "requested", exchangeId: exchange.id });
+}
+
+async function handleShop(user, itemId) {
+  if (!UUID.test(itemId)) return json({ error: "That gift was not found." }, 404);
+  const [item] = await db.select().from(wishItems).where(eq(wishItems.id, itemId)).limit(1);
+  if (!item) return json({ error: "That gift was not found." }, 404);
+  const seats = await db.select().from(members).where(eq(members.userId, user.id));
+  let allowed = false;
+  for (const row of seats) {
+    const [pair] = await db
+      .select()
+      .from(assignments)
+      .where(and(eq(assignments.giverMemberId, row.id), eq(assignments.exchangeId, row.exchangeId)))
+      .limit(1);
+    if (!pair) continue;
+    const [receiver] = await db.select().from(members).where(eq(members.id, pair.receiverMemberId)).limit(1);
+    if (receiver?.wishListId === item.listId) allowed = true;
+  }
+  if (!allowed) return json({ error: "Only the assigned giver can open this shopping link." }, 403);
+  if (!item.originalUrl) return json({ shoppingUrl: "", retailer: "", affiliateApplied: false });
+  const prepared = await finalizeShoppingLink(item.originalUrl, DEFAULT_AFFILIATE_CONFIG, {
+    merchants: await loadMerchants(),
+    lookupImpl: lookupHost,
+  });
+  if (!prepared.ok) return json({ error: prepared.reason }, 400);
+  const shoppingUrl = prepared.shoppingUrl || "";
+  if (/[?&](giver|receiver|recipient|name)=/i.test(shoppingUrl)) {
+    return json({ error: "That shopping link is not safe to open." }, 400);
+  }
+  return json({
+    shoppingUrl,
+    retailer: prepared.retailer || "",
+    affiliateApplied: Boolean(prepared.affiliateApplied),
+  });
+}
+
 async function handleAddExclusion(exchange, body) {
   if (exchange.drawnAt) return json({ error: "Cancel the draw before changing exclusions." }, 409);
   const giverMemberId = String(body.giverMemberId || "");
@@ -933,11 +1081,13 @@ export default async function handler(req, context) {
     const url = new URL(req.url);
     const parts = url.pathname.split("/").filter(Boolean);
     if (parts[1] === "sms" && parts[2] === "twilio" && req.method === "POST") return handleTwilio(req);
+    if (parts[1] === "email" && parts[2] === "resend" && req.method === "POST") return handleResend(req);
     const body = await readJson(req);
     if (body === null) return json({ error: "That request was not valid JSON." }, 400);
 
     if (req.method === "GET" && parts.length === 2 && parts[1] === "session") return handleSession();
     if (parts[1] === "invites" && parts[2] && req.method === "GET") return handleInviteGet(parts[2]);
+    if (parts[1] === "join" && parts[2] && parts.length === 3 && req.method === "GET") return handleJoinGet(parts[2]);
     if (parts[1] === "invites" && parts[2] && parts[3] === "decline" && req.method === "POST") {
       return handleInviteDecline(parts[2]);
     }
@@ -946,6 +1096,9 @@ export default async function handler(req, context) {
     if (!user?.id) return json({ error: "Sign in to continue." }, 401);
     if (parts[1] === "invites" && parts[2] && parts[3] === "accept" && req.method === "POST") {
       return handleInviteAccept(user, parts[2]);
+    }
+    if (parts[1] === "join" && parts[2] && parts[3] === "request" && req.method === "POST") {
+      return handleJoinRequest(user, parts[2], body);
     }
     if (parts[1] === "assignment" && req.method === "GET") {
       return handleAssignment(user, url.searchParams.get("exchange") || "");
@@ -980,6 +1133,9 @@ export default async function handler(req, context) {
       return handleAddWishItem(user, parts[2], body);
     }
     if (parts[1] === "wish-lists" && parts[2] === "share" && req.method === "POST") return handleShareList(user, body);
+    if (parts[1] === "wish-items" && parts[2] && parts[3] === "shop" && req.method === "POST") {
+      return handleShop(user, parts[2]);
+    }
     if (parts[1] === "wish-items" && parts[2] && parts[3] === "reserve" && req.method === "POST") {
       return handleReserve(user, parts[2]);
     }
@@ -1015,6 +1171,10 @@ export default async function handler(req, context) {
       if (parts[3] === "redraw" && req.method === "POST") return handleRedraw(exchange, body, organizer);
       if (parts[3] === "notify" && req.method === "POST") return handleNotify(exchange, body, req, context);
       if (parts[3] === "reminders" && req.method === "POST") return handleQueueReminders(exchange);
+      if (parts[3] === "join" && req.method === "POST") return handleSetJoin(exchange, body);
+      if (parts[3] === "members" && parts[4] && parts[5] === "accept" && req.method === "POST") {
+        return handleAcceptRequested(exchange, parts[4]);
+      }
       if (parts[3] === "exclusions" && req.method === "POST") return handleAddExclusion(exchange, body);
     }
 
@@ -1048,11 +1208,17 @@ export const config = {
     "/api/wish-items/:id/reserve",
     "/api/wish-items/:id",
     "/api/exchanges/:id/reminders",
+    "/api/exchanges/:id/join",
+    "/api/exchanges/:id/members/:memberId/accept",
+    "/api/join/:token",
+    "/api/join/:token/request",
+    "/api/wish-items/:id/shop",
     "/api/tickets",
     "/api/support/tickets",
     "/api/support/lookup",
     "/api/support/resend",
     "/api/admin/merchants",
     "/api/sms/twilio",
+    "/api/email/resend",
   ],
 };

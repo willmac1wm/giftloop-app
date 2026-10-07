@@ -12,6 +12,8 @@ export const exchanges = pgTable("exchanges", {
   status: text("status").notNull().default("accepting"),
   signupDeadline: text("signup_deadline").notNull().default(""),
   timezone: text("timezone").notNull().default("America/Los_Angeles"),
+  joinToken: text("join_token").unique(),
+  joinOpen: boolean("join_open").notNull().default(false),
   drawnAt: timestamp("drawn_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

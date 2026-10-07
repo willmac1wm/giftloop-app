@@ -38,7 +38,8 @@ import {
   supportLookupView,
   withoutPairings,
 } from '../src/server/access.js';
-import { deliveryDecision, reminderRunAt } from '../src/server/notifyPolicy.js';
+import { deliveryDecision, localHour, quietHours, reminderRunAt } from '../src/server/notifyPolicy.js';
+import { wishListNotice } from '../src/server/assignments.js';
 import { twilioSignature, validTwilioSignature } from '../src/server/twilio.js';
 
 function assert(condition, message) {
@@ -329,12 +330,16 @@ const misleadingHop = await finalizeShoppingLink('https://tinyurl.com/gift', DEF
 });
 assert(misleadingHop.ok && misleadingHop.retailer === '' && !misleadingHop.affiliateApplied, misleadingHop.shoppingUrl);
 
-const stolen = acceptDecision({ member: { email: 'ada@example.com', userId: '' }, user: { id: 'b', email: 'bea@example.com' } });
+const stolen = acceptDecision({ member: { email: 'ada@example.com', userId: '' }, user: { id: 'b', email: 'bea@example.com', confirmedAt: '2026-01-01' } });
 assert(!stolen.ok && stolen.status === 403, stolen.error);
-const claimed = acceptDecision({ member: { email: 'ada@example.com', userId: 'a' }, user: { id: 'b', email: 'ada@example.com' } });
+const claimed = acceptDecision({ member: { email: 'ada@example.com', userId: 'a' }, user: { id: 'b', email: 'ada@example.com', confirmedAt: '2026-01-01' } });
 assert(!claimed.ok && claimed.status === 409, claimed.error);
-const samePerson = acceptDecision({ member: { email: 'ada@example.com', userId: '' }, user: { id: 'a', email: 'ada@example.com' } });
-assert(samePerson.ok, 'the invited email can accept');
+const unverified = acceptDecision({ member: { email: 'ada@example.com', userId: '' }, user: { id: 'a', email: 'ada@example.com' } });
+assert(!unverified.ok && unverified.status === 403, unverified.error);
+const samePerson = acceptDecision({ member: { email: 'ada@example.com', userId: '' }, user: { id: 'a', email: 'ada@example.com', confirmedAt: '2026-01-01' } });
+assert(samePerson.ok && samePerson.open === false, 'the invited confirmed email can accept');
+const openJoin = acceptDecision({ user: { id: 'c', email: 'cam@example.com', confirmedAt: '2026-01-01' }, openJoin: true });
+assert(openJoin.ok && openJoin.open, 'an open link can be requested by any confirmed account');
 const busyDraw = interpretDrawLock({ locked: null, fresh: { drawnAt: null, status: 'drawing' } });
 assert(!busyDraw.proceed && busyDraw.status === 409, 'a second draw waits');
 const finishedDraw = interpretDrawLock({ locked: null, fresh: { drawnAt: 'now' } });
@@ -366,6 +371,20 @@ assert(!optedOut.send, optedOut.reason);
 const stillIn = deliveryDecision({ channel: 'sms', kind: 'reminder', prefs: { smsOptIn: true, smsStoppedAt: '', phone: '+15550100101' }, memberStatus: 'declined' });
 assert(!stillIn.send, 'a declined person is not reminded');
 assert(reminderRunAt('2026-12-25')?.toISOString() === '2026-12-24T15:00:00.000Z', 'reminders queue the day before');
+const daytime = quietHours(new Date('2026-10-07T15:00:00.000Z'), 'America/Los_Angeles');
+assert(!daytime.quiet, '8am Pacific is outside quiet hours');
+const night = quietHours(new Date('2026-10-07T06:00:00.000Z'), 'America/Los_Angeles');
+assert(night.quiet && localHour(night.runAt, 'America/Los_Angeles') === 8, night.runAt?.toISOString());
+const deferred = deliveryDecision({
+  channel: 'email',
+  kind: 'reminder',
+  prefs: null,
+  now: new Date('2026-10-07T06:00:00.000Z'),
+  timeZone: 'America/Los_Angeles',
+});
+assert(deferred.defer && !deferred.send, deferred.reason);
+const listNote = wishListNotice({ title: 'Family', url: 'https://giftloop.test/?view=assignment&exchange=1' });
+assert(listNote.includes('view=assignment') && !listNote.includes('amazon.com') && !listNote.includes('Bea'), listNote);
 const signature = twilioSignature('https://giftloop.test/api/sms/twilio', { Body: 'STOP', From: '+15550100101' }, 'token');
 assert(validTwilioSignature({ url: 'https://giftloop.test/api/sms/twilio', params: { From: '+15550100101', Body: 'STOP' }, token: 'token', signature }), 'twilio signature matches');
 assert(!validTwilioSignature({ url: 'https://giftloop.test/api/sms/twilio', params: { Body: 'STOP' }, token: 'token', signature: 'nope' }), 'a bad twilio signature is rejected');

@@ -1,14 +1,22 @@
-export function acceptDecision({ member, user }) {
+export function acceptDecision({ member, user, openJoin = false }) {
+  if (!user?.id || !user?.email) return { ok: false, status: 401, error: "Sign in to continue." };
+  if (!user.confirmedAt) {
+    return { ok: false, status: 403, error: "Confirm your email before joining this exchange." };
+  }
+  if (openJoin) return { ok: true, open: true };
   if (!member) return { ok: false, status: 404, error: "That invitation was not found." };
-  if (member.userId && member.userId !== user?.id) {
+  if (member.userId && member.userId !== user.id) {
     return { ok: false, status: 409, error: "This invitation was already accepted." };
   }
   const invitedEmail = String(member.email || "").toLowerCase();
-  const accountEmail = String(user?.email || "").toLowerCase();
-  if (invitedEmail && invitedEmail !== accountEmail) {
+  const accountEmail = String(user.email || "").toLowerCase();
+  if (!invitedEmail) {
+    return { ok: false, status: 403, error: "This private invitation needs the guest's email address." };
+  }
+  if (invitedEmail !== accountEmail) {
     return { ok: false, status: 403, error: "Sign in with the email address on the invitation." };
   }
-  return { ok: true };
+  return { ok: true, open: false };
 }
 
 export function interpretDrawLock({ locked, fresh }) {
