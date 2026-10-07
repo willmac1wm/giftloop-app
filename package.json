@@ -8,11 +8,16 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "smoke": "node scripts/smoke-draw.mjs"
+    "smoke": "node scripts/smoke-draw.mjs",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "netlify database migrations apply"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.2",
+    "@netlify/database": "^2.0.1",
+    "@netlify/identity": "^2.0.0",
     "canvas-confetti": "^1.9.4",
+    "drizzle-orm": "^1.0.0-beta.22",
     "lucide-react": "^1.52.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",
@@ -24,6 +29,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "drizzle-kit": "^1.0.0-beta.22",
     "oxlint": "^1.81.0",
     "tailwindcss": "^4.3.3",
     "vite": "^8.3.0"

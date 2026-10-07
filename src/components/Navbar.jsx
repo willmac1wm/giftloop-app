@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gift, Volume2, VolumeX, Snowflake, RotateCcw, Smartphone, Tag } from 'lucide-react';
+import { Gift, Volume2, VolumeX, Snowflake, RotateCcw, Smartphone, Tag, KeyRound, Shield, List } from 'lucide-react';
 import { sound } from '../utils/audio';
 
 export default function Navbar({
@@ -10,6 +10,12 @@ export default function Navbar({
   onResetDemoData,
   onOpenInstallModal,
   onOpenAffiliateModal,
+  user,
+  area,
+  onOpenAccount,
+  onOpenAdmin,
+  onOpenWishlist,
+  onOpenExchange,
 }) {
   const toggleSound = () => {
     const next = !soundEnabled;
@@ -63,6 +69,54 @@ export default function Navbar({
             title={snowEnabled ? 'Disable Snowfall' : 'Enable Snowfall'}
           >
             <Snowflake size={16} />
+          </button>
+
+          <button
+            onClick={() => {
+              sound.playClick();
+              onOpenExchange();
+            }}
+            className={`btn btn-secondary text-xs py-2 px-2.5 ${area === 'exchange' ? 'text-white' : ''}`}
+            title="Secret Santa on this device"
+          >
+            <Gift size={13} />
+            <span className="hidden md:inline">Exchange</span>
+          </button>
+
+          <button
+            onClick={() => {
+              sound.playClick();
+              onOpenAdmin();
+            }}
+            className={`btn btn-secondary text-xs py-2 px-2.5 ${area === 'admin' ? 'text-amber-300' : ''}`}
+            title="Organizer admin"
+          >
+            <Shield size={13} />
+            <span className="hidden md:inline">Admin</span>
+          </button>
+
+          <button
+            onClick={() => {
+              sound.playClick();
+              onOpenWishlist();
+            }}
+            className={`btn btn-secondary text-xs py-2 px-2.5 ${area === 'wishlist' ? 'text-rose-300' : ''}`}
+            title="Your wish list"
+          >
+            <List size={13} />
+            <span className="hidden md:inline">My list</span>
+          </button>
+
+          <button
+            onClick={() => {
+              sound.playClick();
+              onOpenAccount();
+            }}
+            className={`btn btn-secondary text-xs py-2 px-2.5 ${area === 'account' ? 'text-sky-300' : ''}`}
+            title={user?.email || 'Sign in'}
+          >
+            <KeyRound size={13} />
+            <span className="hidden lg:inline">{user?.email ? 'Account' : 'Sign in'}</span>
           </button>
 
           <button

@@ -26,6 +26,8 @@ import {
 import { dealLinks, isPrimeBigDealDays } from '../src/utils/deals.js';
 import { ideasWithinBudget, shopQuery } from '../src/utils/shop.js';
 import { filterGifts } from '../src/utils/giftFinder.js';
+import { normalizeSmsTo, readProviders } from '../src/server/messages.js';
+import { drawMembers, revealUrl } from '../src/server/assignments.js';
 
 function assert(condition, message) {
   if (!condition) {
@@ -228,6 +230,26 @@ assert(forMen.every((item) => item.shopFor !== 'woman'), 'man filter hides gifts
 const ideas = ideasWithinBudget('$25');
 assert(ideas.length >= 3, 'shop ideas for a $25 budget');
 assert(ideas.every((item) => item.priceValue <= 30), `idea over budget: ${ideas.map((item) => item.price).join(', ')}`);
+
+assert(normalizeSmsTo('(555) 010-0101') === '+15550100101', 'ten digit phones become E.164');
+assert(normalizeSmsTo('+44 20 7946 0958') === '+442079460958', 'international numbers keep their country code');
+assert(!readProviders({}).emailReady && !readProviders({}).smsReady, 'providers stay off without keys');
+assert(readProviders({ RESEND_API_KEY: 'key', EMAIL_FROM: 'gifts@example.com' }).emailReady, 'resend is ready when both email vars exist');
+assert(readProviders({ TWILIO_ACCOUNT_SID: 'AC', TWILIO_AUTH_TOKEN: 'tok', TWILIO_FROM_NUMBER: '+15550001111' }).smsReady, 'twilio is ready when all three vars exist');
+const serverDraw = drawMembers([{ id: 'a', name: 'Ada' }, { id: 'b', name: 'Bea' }]);
+assert(serverDraw.success && serverDraw.matches.length === 2, 'server draw pairs the guest list');
+const serverUrl = revealUrl({
+  origin: 'https://giftloop.test',
+  event: { title: 'Family', budget: '$25', eventDate: '2026-12-25' },
+  giver: { name: 'Ada' },
+  receiver: { name: 'Bea', wishes: 'Wool socks\nCandle', listTitle: 'Bea list', hobbies: 'hiking' },
+  affiliate: { amazonTag: 'mytag-20' },
+});
+const serverPayload = decodeSecretPayload(new URL(serverUrl).searchParams.get('t'));
+assert(serverUrl.startsWith('https://giftloop.test/?view=reveal&t='), serverUrl);
+assert(serverPayload.giverName === 'Ada' && serverPayload.receiverName === 'Bea', 'reveal token names the match');
+assert(serverPayload.wishlist.join('|') === 'Wool socks|Candle', 'reveal token carries the wish list');
+assert(serverPayload.affiliate.amazonTag === 'mytag-20', 'reveal token carries the organizer affiliate tag');
 
 console.log('smoke ok');
 console.log('christmas presets:', christmas.join(', '));
