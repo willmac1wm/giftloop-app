@@ -13,8 +13,10 @@ import {
   isDetailsComplete,
 } from '../src/data/exchangePresets.js';
 import { generateSecretSantaDraw } from '../src/utils/shuffle.js';
-import { buildRevealPayload } from '../src/utils/revealLink.js';
+import { buildRevealPayload, emailHref, smsHref } from '../src/utils/revealLink.js';
 import { decodeSecretPayload, encodeSecretPayload } from '../src/utils/crypto.js';
+import { DEFAULT_AFFILIATE_CONFIG, generateStoreSearchUrl } from '../src/utils/affiliate.js';
+import { ideasWithinBudget } from '../src/utils/shop.js';
 
 function assert(condition, message) {
   if (!condition) {
@@ -142,6 +144,31 @@ assert(decoded.receiverName === draw.matches[0].receiver.name, 'reveal token rou
 assert(decoded.budget === '$25', 'budget is stored on the reveal token');
 assert(decoded.eventTitle === 'Christmas 2026', 'title is stored on the reveal token');
 assert(!JSON.stringify(decoded).includes('@'), 'reveal payload from the wizard has no email');
+
+const contacted = materializeParticipants({
+  ...blank,
+  organizerName: 'Ada',
+  organizerEmail: 'ada@example.com',
+  organizerPhone: '555-0100',
+  includeOrganizer: true,
+  nameRows: [{ id: 'p_bea', name: 'Bea', email: 'bea@example.com', phone: '555-0101' }],
+});
+assert(contacted[0].email === 'ada@example.com' && contacted[0].phone === '555-0100', 'organizer contact');
+assert(contacted[1].email === 'bea@example.com' && contacted[1].phone === '555-0101', 'friend contact');
+
+const mail = emailHref(event, 'Bea', 'bea@example.com', 'https://giftloop.test/?view=reveal&t=abc');
+assert(mail.startsWith('mailto:bea@example.com?'), mail);
+assert(decodeURIComponent(mail).includes('https://giftloop.test'), 'email body includes the private link');
+
+const text = smsHref('(555) 010-0101', 'Hi Bea');
+assert(text.startsWith('sms:5550100101'), text);
+assert(text.includes('body=Hi%20Bea'), 'text body is included');
+
+const amazon = generateStoreSearchUrl('wool socks', 'amazon', DEFAULT_AFFILIATE_CONFIG);
+assert(amazon.includes('tag=giftloop-20'), amazon);
+const ideas = ideasWithinBudget('$25');
+assert(ideas.length >= 3, 'shop ideas for a $25 budget');
+assert(ideas.every((item) => item.priceValue <= 30), `idea over budget: ${ideas.map((item) => item.price).join(', ')}`);
 
 console.log('smoke ok');
 console.log('christmas presets:', christmas.join(', '));

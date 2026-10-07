@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { Gift, Sparkles, CheckCircle2, Lock, Calendar, DollarSign, Heart, Ban, ArrowLeft, BookmarkCheck, ExternalLink, ShoppingBag } from 'lucide-react';
+import { Gift, Sparkles, CheckCircle2, Lock, Calendar, DollarSign, Heart, Ban, ArrowLeft, BookmarkCheck } from 'lucide-react';
 import { sound } from '../utils/audio';
-import { applyAffiliateTag, generateStoreSearchUrl, detectStore, SUPPORTED_STORES } from '../utils/affiliate';
+import ShopForMatch from './ShopForMatch';
 
 export default function SecretRevealView({ payload, onBackToOrganizer }) {
   const [unwrapped, setUnwrapped] = useState(false);
@@ -164,105 +164,14 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
             </div>
           </div>
 
-          {/* Wishlist & Preferences Section */}
           <div className="py-5 space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs uppercase font-bold tracking-wider text-amber-400 flex items-center gap-1.5">
-                  <Gift size={14} /> Wishlist Ideas & Store Links
-                </h3>
-                <span className="text-[10px] text-slate-400">1-Click Affiliate Matching</span>
-              </div>
-
-              {wishlist && wishlist.length > 0 ? (
-                <ul className="space-y-2.5">
-                  {wishlist.map((item, idx) => {
-                    const isObj = typeof item === 'object' && item !== null;
-                    const title = isObj ? item.title : item;
-                    const directUrl = isObj ? item.url : (typeof item === 'string' && item.startsWith('http') ? item : null);
-                    const taggedDirectUrl = directUrl ? applyAffiliateTag(directUrl) : null;
-                    const storeId = directUrl ? detectStore(directUrl) : null;
-
-                    return (
-                      <li
-                        key={idx}
-                        className="text-sm text-slate-200 bg-slate-800/60 p-3 rounded-xl border border-white/5 space-y-2"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-start gap-2">
-                            <span className="text-emerald-400 mt-0.5">•</span>
-                            <span className="font-semibold text-white">{title}</span>
-                          </div>
-
-                          {taggedDirectUrl && (
-                            <a
-                              href={taggedDirectUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn btn-gold text-[11px] py-1 px-2.5 shrink-0"
-                            >
-                              <span>Buy on {storeId === 'basspro' ? 'Bass Pro' : (storeId ? storeId.toUpperCase() : 'Store')}</span>
-                              <ExternalLink size={12} />
-                            </a>
-                          )}
-                        </div>
-
-                        {/* 1-Click Retailer Search Buttons with Affiliate Tags */}
-                        <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-white/5 text-[11px]">
-                          <span className="text-[10px] text-slate-400 flex items-center gap-1 mr-1">
-                            <ShoppingBag size={11} /> Find & Buy:
-                          </span>
-
-                          <a
-                            href={generateStoreSearchUrl(title, 'amazon')}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#ff9900]/15 text-[#fbbf24] hover:bg-[#ff9900]/25 border border-[#ff9900]/30 transition-colors"
-                          >
-                            <span>📦 Amazon</span>
-                            <ExternalLink size={10} />
-                          </a>
-
-                          <a
-                            href={generateStoreSearchUrl(title, 'walmart')}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#0071dc]/15 text-[#60a5fa] hover:bg-[#0071dc]/25 border border-[#0071dc]/30 transition-colors"
-                          >
-                            <span>🛒 Walmart</span>
-                            <ExternalLink size={10} />
-                          </a>
-
-                          <a
-                            href={generateStoreSearchUrl(title, 'basspro')}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#b91c1c]/15 text-[#f87171] hover:bg-[#b91c1c]/25 border border-[#b91c1c]/30 transition-colors"
-                          >
-                            <span>🎣 Bass Pro</span>
-                            <ExternalLink size={10} />
-                          </a>
-
-                          <a
-                            href={generateStoreSearchUrl(title, 'target')}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#cc0000]/15 text-[#fca5a5] hover:bg-[#cc0000]/25 border border-[#cc0000]/30 transition-colors"
-                          >
-                            <span>🎯 Target</span>
-                            <ExternalLink size={10} />
-                          </a>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <div className="text-xs text-slate-400 italic bg-white/5 p-3 rounded-lg">
-                  No specific wishlist items added yet. Check likes and hobbies below!
-                </div>
-              )}
-            </div>
+            <ShopForMatch
+              receiverName={receiverName}
+              budget={budget}
+              likes={likes}
+              wishlist={wishlist}
+              affiliate={payload?.affiliate}
+            />
 
             {likes && (
               <div>

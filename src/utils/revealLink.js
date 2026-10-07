@@ -1,17 +1,38 @@
 import { encodeSecretPayload } from './crypto.js';
+import { getStoredAffiliateConfig } from './affiliate.js';
+
+function livePerson(event, person) {
+  if (!person) return {};
+  const current = (event.participants || []).find((item) => item.id === person.id);
+  return { ...person, ...(current || {}) };
+}
+
+function affiliateSnapshot() {
+  try {
+    if (typeof localStorage === 'undefined') return undefined;
+    return getStoredAffiliateConfig();
+  } catch {
+    return undefined;
+  }
+}
 
 export function buildRevealPayload(event, match) {
-  return {
-    giverName: match.giver.name,
-    receiverName: match.receiver.name,
-    wishlist: match.receiver.wishlist || [],
-    likes: match.receiver.likes || '',
-    dislikes: match.receiver.dislikes || '',
+  const giver = livePerson(event, match.giver);
+  const receiver = livePerson(event, match.receiver);
+  const payload = {
+    giverName: giver.name,
+    receiverName: receiver.name,
+    wishlist: receiver.wishlist || [],
+    likes: receiver.likes || '',
+    dislikes: receiver.dislikes || '',
     budget: event.budget,
     exchangeDate: event.exchangeDate,
     eventTitle: event.title,
     rules: event.rules,
   };
+  const affiliate = affiliateSnapshot();
+  if (affiliate) payload.affiliate = affiliate;
+  return payload;
 }
 
 export function buildRevealUrl(event, match) {
@@ -26,6 +47,24 @@ export function whatsAppText(event, giverName, url) {
     return `Hi ${giverName}! ${custom}\n\nYour private link:\n${url}`;
   }
   return `🎄 Hi ${giverName}! Here is your secret Secret Santa draw link for "${event.title}":\n\n${url}\n\nTap to unwrap your match! 🤫`;
+}
+
+export function looksLikeEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
+export function emailHref(event, giverName, email, url) {
+  const to = looksLikeEmail(email) ? String(email).trim() : '';
+  const subject = encodeURIComponent(`Your private link for ${event.title || 'Secret Santa'}`);
+  const body = encodeURIComponent(smsText(event, giverName, url));
+  return `mailto:${to}?subject=${subject}&body=${body}`;
+}
+
+export function smsHref(phone, body) {
+  const digits = String(phone || '').replace(/[^\d+]/g, '');
+  const encoded = encodeURIComponent(body);
+  if (!digits) return `sms:?&body=${encoded}`;
+  return `sms:${digits}?&body=${encoded}`;
 }
 
 export function smsText(event, giverName, url) {
