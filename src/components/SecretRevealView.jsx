@@ -4,6 +4,7 @@ import { Gift, Sparkles, CheckCircle2, Lock, Calendar, DollarSign, Heart, Ban, A
 import { sound } from '../utils/audio';
 import ShopForMatch from './ShopForMatch';
 import DealBanner from './DealBanner';
+import GiftFinder from './GiftFinder';
 
 export default function SecretRevealView({ payload, onBackToOrganizer }) {
   const [unwrapped, setUnwrapped] = useState(false);
@@ -150,6 +151,17 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
           </div>
 
           <div className="py-5 space-y-4">
+            <GiftFinder
+              readOnly
+              personName={receiverName}
+              listTitle={listTitle}
+              ageBand={ageBand}
+              shopFor={shopFor}
+              wishes={wishlist}
+              hobbies={likes}
+              budget={budget}
+              affiliate={payload?.affiliate}
+            />
             <ShopForMatch
               receiverName={receiverName}
               budget={budget}
