@@ -24,7 +24,7 @@ export async function api(path, { method = "GET", json: body } = {}) {
 export function authErrorMessage(error) {
   const name = error?.name || "";
   const message = error?.message || "";
-  if (name === "MissingIdentityError" || /not configured/i.test(message)) {
+  if (name === "MissingIdentityError" || /not configured/i.test(message) || message === "Not Found" || error?.status === 404) {
     return "Identity is not turned on for this site yet. In Netlify, open Project configuration, then Identity, and enable it.";
   }
   if (error?.status === 401) return "That email or password did not match.";
