@@ -43,10 +43,15 @@ export default function ShopForMatch({
   budget,
   likes,
   wishlist = [],
+  ageBand,
+  shopFor,
+  listTitle,
   affiliate,
 }) {
   const config = affiliate;
-  const [query, setQuery] = useState(() => shopQuery({ receiverName, likes, wishlist, budget }));
+  const [query, setQuery] = useState(() => shopQuery({
+    receiverName, likes, wishlist, budget, ageBand, shopFor,
+  }));
   const ideas = ideasWithinBudget(budget);
 
   return (
@@ -57,6 +62,7 @@ export default function ShopForMatch({
           Shop for {receiverName}
         </h3>
         <p className="text-xs text-slate-300 mt-1">
+          {listTitle ? `${listTitle}. ` : ''}
           These open the store search with Gift Loop referral links
           {budget ? ` and stay near the ${budget} budget` : ''}.
         </p>

@@ -3,6 +3,7 @@ import { celebrateUnwrap } from '../utils/christmasConfetti';
 import { Gift, Sparkles, CheckCircle2, Lock, Calendar, DollarSign, Heart, Ban, ArrowLeft, BookmarkCheck } from 'lucide-react';
 import { sound } from '../utils/audio';
 import ShopForMatch from './ShopForMatch';
+import DealBanner from './DealBanner';
 
 export default function SecretRevealView({ payload, onBackToOrganizer }) {
   const [unwrapped, setUnwrapped] = useState(false);
@@ -13,6 +14,9 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
     giverName = 'Guest',
     receiverName = 'Special Someone',
     wishlist = [],
+    listTitle = '',
+    ageBand = '',
+    shopFor = '',
     likes = '',
     dislikes = '',
     budget = '$30 - $40',
@@ -73,6 +77,10 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
         <p className="text-sm text-slate-300 mt-1">
           Your private Secret Santa assignment has arrived.
         </p>
+      </div>
+
+      <div className="w-full max-w-lg mb-4">
+        <DealBanner affiliate={payload?.affiliate} />
       </div>
 
       {!unwrapped ? (
@@ -147,6 +155,9 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
               budget={budget}
               likes={likes}
               wishlist={wishlist}
+              listTitle={listTitle}
+              ageBand={ageBand}
+              shopFor={shopFor}
               affiliate={payload?.affiliate}
             />
 

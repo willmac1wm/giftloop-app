@@ -29,8 +29,11 @@ import {
   isDetailsComplete,
   occasionById,
 } from '../data/exchangePresets';
+import { AGE_BANDS, SHOP_FOR } from '../data/giftProfile';
 import {
   WIZARD_STEPS,
+  applyImportedPeople,
+  parsePeopleList,
   createNameRow,
   materializeParticipants,
   pruneExclusions,
@@ -39,6 +42,7 @@ import RevealLinksPanel from './RevealLinksPanel';
 
 const PROGRESS_STEPS = [
   { id: 'names', label: 'Names' },
+  { id: 'wishes', label: 'Wishes' },
   { id: 'exclusions', label: 'Exclusions' },
   { id: 'details', label: 'Details' },
   { id: 'message', label: 'Message' },
@@ -73,7 +77,7 @@ export default function CreateExchangeWizard({
     if (to > stepIndex(event.wizardFurthest || step) && to > from + 1) return;
 
     let next = { ...event, wizardStep: target };
-    if (step === 'names' && target !== 'names' && target !== 'start') {
+    if (stepIndex(target) > stepIndex('wishes')) {
       const participants = materializeParticipants(event);
       if ((event.organizerName || '').trim().length === 0 || participants.length < 2) return;
       const exclusions = pruneExclusions(event.exclusions, participants);
@@ -125,7 +129,7 @@ export default function CreateExchangeWizard({
     sound.playChime();
     const prepared = withDerivedTitle({
       ...event,
-      participants: event.participants?.length ? event.participants : materializeParticipants(event),
+      participants: materializeParticipants(event),
     });
     const result = generateSecretSantaDraw(prepared.participants, prepared.exclusions || [], true);
     if (!result.success) {
@@ -189,13 +193,22 @@ export default function CreateExchangeWizard({
         />
       )}
 
+      {step === 'wishes' && (
+        <WishesStep
+          event={event}
+          patch={patch}
+          onBack={() => goToStep('names')}
+          onContinue={() => continueFrom('wishes')}
+        />
+      )}
+
       {step === 'exclusions' && (
         <ExclusionsStep
           event={event}
           patch={patch}
           picker={picker}
           setPicker={setPicker}
-          onBack={() => goToStep('names')}
+          onBack={() => goToStep('wishes')}
           onContinue={() => continueFrom('exclusions')}
         />
       )}
@@ -325,9 +338,24 @@ function StartStep({ onStart, onLoadSample }) {
 }
 
 function NamesStep({ event, patch, onBack, onContinue }) {
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importError, setImportError] = useState('');
   const organizerReady = (event.organizerName || '').trim().length > 0;
   const previewCount = materializeParticipants(event).length;
   const canContinue = organizerReady && previewCount >= 2;
+
+  const commitImport = () => {
+    const people = parsePeopleList(importText);
+    if (people.length < 2) {
+      setImportError('Add at least two lines. Put yourself first, then one name and email per line.');
+      return;
+    }
+    sound.playClick();
+    patch(applyImportedPeople(event, people));
+    setImportOpen(false);
+    setImportError('');
+  };
 
   const updateRow = (id, partial) => {
     patch({
@@ -384,10 +412,48 @@ function NamesStep({ event, patch, onBack, onContinue }) {
         </label>
       </div>
 
-      <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1">
-        <Users size={13} className="text-emerald-400" />
-        Friends
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+          <Users size={13} className="text-emerald-400" />
+          Friends
+        </div>
+        <button
+          type="button"
+          className="btn btn-secondary text-xs py-1.5 px-2.5"
+          onClick={() => {
+            sound.playClick();
+            setImportOpen((open) => !open);
+            setImportError('');
+          }}
+        >
+          Import
+        </button>
       </div>
+      {importOpen && (
+        <div className="friend-card mb-3">
+          <p className="text-sm text-slate-200 font-semibold">Import names and email addresses</p>
+          <p className="text-xs text-slate-400">
+            One person per line. Put yourself first. Email and mobile are optional.
+          </p>
+          <textarea
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
+            rows={6}
+            className="glass-input w-full text-sm"
+            placeholder={'Ada, ada@example.com\nBea, bea@example.com, 555-0101'}
+            aria-label="Names and email addresses"
+          />
+          {importError && <p className="text-xs text-rose-300">{importError}</p>}
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn btn-secondary text-xs" onClick={() => setImportOpen(false)}>
+              Cancel
+            </button>
+            <button type="button" className="btn btn-primary text-xs" onClick={commitImport}>
+              Import
+            </button>
+          </div>
+        </div>
+      )}
       <div className="space-y-2">
         {(event.nameRows || []).map((row, index) => (
           <div key={row.id} className="friend-card">
@@ -465,6 +531,86 @@ function exclusionSummary(giverId, participants, exclusions) {
   if (blocked.length === 0) return 'Can draw anyone';
   if (blocked.length === 1) return `Won't draw ${blocked[0]}`;
   return `Won't draw ${blocked.length} people`;
+}
+
+function profilePatch(event, person, fields) {
+  if (person.isOrganizer) {
+    return {
+      organizerListTitle: fields.listTitle !== undefined ? fields.listTitle : event.organizerListTitle,
+      organizerAgeBand: fields.ageBand !== undefined ? fields.ageBand : event.organizerAgeBand,
+      organizerShopFor: fields.shopFor !== undefined ? fields.shopFor : event.organizerShopFor,
+      organizerWishes: fields.wishes !== undefined ? fields.wishes : event.organizerWishes,
+    };
+  }
+  return {
+    nameRows: (event.nameRows || []).map((row) => (row.id === person.id ? { ...row, ...fields } : row)),
+  };
+}
+
+function WishesStep({ event, patch, onBack, onContinue }) {
+  const people = materializeParticipants(event);
+  return (
+    <StepCard
+      title="Wish lists"
+      lede="A list name, an age, and who the gifts are for help the store search. You can skip this and add wishes later."
+    >
+      <div className="space-y-3">
+        {people.map((person) => {
+          const wishes = person.isOrganizer ? (event.organizerWishes || '') : ((event.nameRows || []).find((row) => row.id === person.id)?.wishes || '');
+          const listTitle = person.isOrganizer ? (event.organizerListTitle || '') : ((event.nameRows || []).find((row) => row.id === person.id)?.listTitle || '');
+          const ageBand = person.isOrganizer ? (event.organizerAgeBand || '') : ((event.nameRows || []).find((row) => row.id === person.id)?.ageBand || '');
+          const shopFor = person.isOrganizer ? (event.organizerShopFor || '') : ((event.nameRows || []).find((row) => row.id === person.id)?.shopFor || '');
+          const update = (fields) => patch(profilePatch(event, person, fields));
+          return (
+            <div key={person.id} className="friend-card">
+              <div className="text-sm font-semibold text-white">{person.name}</div>
+              <input
+                type="text"
+                value={listTitle}
+                onChange={(e) => update({ listTitle: e.target.value })}
+                placeholder={`${person.name}'s list`}
+                aria-label={`${person.name} wish list name`}
+                className="glass-input w-full text-sm"
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <select
+                  value={ageBand}
+                  onChange={(e) => update({ ageBand: e.target.value })}
+                  aria-label={`${person.name} age`}
+                  className="glass-input w-full text-sm"
+                >
+                  <option value="">Age</option>
+                  {AGE_BANDS.map((band) => (
+                    <option key={band.id} value={band.id}>{band.label}</option>
+                  ))}
+                </select>
+                <select
+                  value={shopFor}
+                  onChange={(e) => update({ shopFor: e.target.value })}
+                  aria-label={`${person.name} who the gifts are for`}
+                  className="glass-input w-full text-sm"
+                >
+                  <option value="">Who are the gifts for?</option>
+                  {SHOP_FOR.map((item) => (
+                    <option key={item.id} value={item.id}>{item.label}</option>
+                  ))}
+                </select>
+              </div>
+              <textarea
+                value={wishes}
+                onChange={(e) => update({ wishes: e.target.value })}
+                rows={3}
+                placeholder={'Wool socks\nBoard game\nCandle'}
+                aria-label={`${person.name} wishes`}
+                className="glass-input w-full text-sm"
+              />
+            </div>
+          );
+        })}
+      </div>
+      <StepNav onBack={onBack} onContinue={onContinue} continueLabel="Save wish lists" />
+    </StepCard>
+  );
 }
 
 function ExclusionsStep({ event, patch, picker, setPicker, onBack, onContinue }) {
@@ -976,7 +1122,7 @@ function ShareStep({ event, onPreviewReveal, onUpdateEvent, onBack, onRedraw, on
             Draw again
           </button>
           <button type="button" onClick={onFinish} className="btn btn-primary text-sm">
-            Add wishlists in studio
+            Open the exchange
             <ChevronRight size={16} />
           </button>
         </div>
