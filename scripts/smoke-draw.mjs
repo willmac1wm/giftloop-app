@@ -27,7 +27,8 @@ import { dealLinks, isPrimeBigDealDays } from '../src/utils/deals.js';
 import { ideasWithinBudget, shopQuery } from '../src/utils/shop.js';
 import { filterGifts } from '../src/utils/giftFinder.js';
 import { normalizeSmsTo, readProviders } from '../src/server/messages.js';
-import { drawMembers, revealUrl } from '../src/server/assignments.js';
+import { assignmentNotice, drawMembers, invitationNotice, planDraw, revealUrl } from '../src/server/assignments.js';
+import { prepareShoppingLink } from '../src/server/shoppingLink.js';
 
 function assert(condition, message) {
   if (!condition) {
@@ -250,6 +251,45 @@ assert(serverUrl.startsWith('https://giftloop.test/?view=reveal&t='), serverUrl)
 assert(serverPayload.giverName === 'Ada' && serverPayload.receiverName === 'Bea', 'reveal token names the match');
 assert(serverPayload.wishlist.join('|') === 'Wool socks|Candle', 'reveal token carries the wish list');
 assert(serverPayload.affiliate.amazonTag === 'mytag-20', 'reveal token carries the organizer affiliate tag');
+
+const repeatDraw = planDraw({ alreadyDrawn: true, people: [{ id: 'a', name: 'Ada', status: 'accepted' }], exclusions: [] });
+assert(repeatDraw.alreadyDrawn && repeatDraw.success && repeatDraw.matches === null, 'a second draw does not create new pairs');
+const invitedOnly = planDraw({
+  alreadyDrawn: false,
+  people: [
+    { id: 'a', name: 'Ada', status: 'accepted' },
+    { id: 'b', name: 'Bea', status: 'invited' },
+    { id: 'c', name: 'Cam', status: 'accepted' },
+  ],
+  exclusions: [],
+});
+assert(invitedOnly.success && invitedOnly.included.length === 2, 'only accepted people are drawn');
+const impossibleServerDraw = planDraw({
+  alreadyDrawn: false,
+  people: [
+    { id: 'a', name: 'Ada', status: 'accepted' },
+    { id: 'b', name: 'Bea', status: 'accepted' },
+  ],
+  exclusions: [
+    { giverId: 'a', receiverId: 'b' },
+    { giverId: 'b', receiverId: 'a' },
+  ],
+});
+assert(!impossibleServerDraw.success && /exclusion/i.test(impossibleServerDraw.error), impossibleServerDraw.error);
+const notice = assignmentNotice({ title: 'Family', url: 'https://giftloop.test/?view=assignment&exchange=1' });
+assert(notice.includes('Your recipient') && notice.includes('view=assignment') && !notice.includes('Bea'), notice);
+const inviteNote = invitationNotice({ title: 'Family', url: 'https://giftloop.test/?view=invite&code=abc' });
+assert(inviteNote.includes('view=invite') && !/recipient/i.test(inviteNote), inviteNote);
+const amazonLink = prepareShoppingLink('https://www.amazon.com/dp/B001?th=1', DEFAULT_AFFILIATE_CONFIG);
+assert(amazonLink.ok && amazonLink.retailer === 'amazon' && amazonLink.shoppingUrl.includes('tag=giftloop-20') && amazonLink.shoppingUrl.includes('th=1'), amazonLink.shoppingUrl);
+const plainLink = prepareShoppingLink('https://shop.example.com/homemade', DEFAULT_AFFILIATE_CONFIG);
+assert(plainLink.ok && plainLink.retailer === '' && plainLink.shoppingUrl === 'https://shop.example.com/homemade' && !plainLink.affiliateApplied, plainLink.shoppingUrl);
+const blocked = prepareShoppingLink('javascript:alert(1)', DEFAULT_AFFILIATE_CONFIG);
+assert(!blocked.ok, blocked.reason);
+const local = prepareShoppingLink('http://127.0.0.1/admin', DEFAULT_AFFILIATE_CONFIG);
+assert(!local.ok, local.reason);
+const shortLink = prepareShoppingLink('https://amzn.to/abc', DEFAULT_AFFILIATE_CONFIG);
+assert(shortLink.ok && shortLink.shortened && !shortLink.affiliateApplied && shortLink.shoppingUrl.includes('amzn.to'), shortLink.shoppingUrl);
 
 console.log('smoke ok');
 console.log('christmas presets:', christmas.join(', '));

@@ -4,9 +4,32 @@ import { generateSecretSantaDraw } from "../utils/shuffle.js";
 
 const AFFILIATE_KEYS = ["amazonTag", "walmartPublisherId", "bassProPartnerId", "targetPartnerId", "bestBuyPartnerId"];
 
-export function drawMembers(people) {
+export function drawMembers(people, exclusions = []) {
   const participants = people.map((person) => ({ id: person.id, name: person.name }));
-  return generateSecretSantaDraw(participants, [], true);
+  return generateSecretSantaDraw(participants, exclusions, true);
+}
+
+export function planDraw({ alreadyDrawn, people, exclusions }) {
+  if (alreadyDrawn) return { alreadyDrawn: true, success: true, matches: null, included: [] };
+  const included = (people || []).filter((person) => person.status === "accepted");
+  const includedIds = new Set(included.map((person) => person.id));
+  const activeExclusions = (exclusions || []).filter(
+    (rule) => includedIds.has(rule.giverId) && includedIds.has(rule.receiverId),
+  );
+  const result = drawMembers(included, activeExclusions);
+  return {
+    alreadyDrawn: false,
+    included: included.map((person) => ({ id: person.id, name: person.name, status: person.status })),
+    ...result,
+  };
+}
+
+export function assignmentNotice({ title, url }) {
+  return `Your recipient for ${title || "Secret Santa"} is ready.\n\nSign in to see who you drew:\n${url}\n\nThis message does not include their name.`;
+}
+
+export function invitationNotice({ title, url }) {
+  return `You are invited to ${title || "a Secret Santa"}.\n\nOpen this link to accept or decline. It does not reveal any assignments:\n${url}`;
 }
 
 export function wishLines(value) {

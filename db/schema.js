@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const exchanges = pgTable("exchanges", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -9,6 +9,9 @@ export const exchanges = pgTable("exchanges", {
   occasion: text("occasion").notNull().default("Christmas"),
   eventDate: text("event_date").notNull().default(""),
   inviteMessage: text("invite_message").notNull().default(""),
+  status: text("status").notNull().default("accepting"),
+  signupDeadline: text("signup_deadline").notNull().default(""),
+  timezone: text("timezone").notNull().default("America/Los_Angeles"),
   drawnAt: timestamp("drawn_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -25,6 +28,10 @@ export const members = pgTable("members", {
   shopFor: text("shop_for").notNull().default(""),
   wishes: text("wishes").notNull().default(""),
   hobbies: text("hobbies").notNull().default(""),
+  status: text("status").notNull().default("invited"),
+  inviteToken: text("invite_token").unique(),
+  exchangeRole: text("exchange_role").notNull().default("member"),
+  wishListId: uuid("wish_list_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -42,5 +49,50 @@ export const deliveries = pgTable("deliveries", {
   channel: text("channel").notNull(),
   status: text("status").notNull(),
   detail: text("detail").notNull().default(""),
+  kind: text("kind").notNull().default("note"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const exclusions = pgTable("exclusions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  exchangeId: uuid("exchange_id").notNull().references(() => exchanges.id, { onDelete: "cascade" }),
+  giverMemberId: uuid("giver_member_id").notNull().references(() => members.id, { onDelete: "cascade" }),
+  receiverMemberId: uuid("receiver_member_id").notNull().references(() => members.id, { onDelete: "cascade" }),
+});
+
+export const wishLists = pgTable("wish_lists", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerUserId: text("owner_user_id").notNull(),
+  title: text("title").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const wishItems = pgTable("wish_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  listId: uuid("list_id").notNull().references(() => wishLists.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  notes: text("notes").notNull().default(""),
+  size: text("size").notNull().default(""),
+  color: text("color").notNull().default(""),
+  priority: text("priority").notNull().default(""),
+  originalUrl: text("original_url").notNull().default(""),
+  shoppingUrl: text("shopping_url").notNull().default(""),
+  retailer: text("retailer").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const reservations = pgTable("reservations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  itemId: uuid("item_id").notNull().references(() => wishItems.id, { onDelete: "cascade" }).unique(),
+  memberId: uuid("member_id").notNull().references(() => members.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const notificationPrefs = pgTable("notification_prefs", {
+  userId: text("user_id").primaryKey(),
+  emailInvites: boolean("email_invites").notNull().default(true),
+  emailAssignments: boolean("email_assignments").notNull().default(true),
+  emailReminders: boolean("email_reminders").notNull().default(true),
+  smsOptIn: boolean("sms_opt_in").notNull().default(false),
+  phone: text("phone").notNull().default(""),
 });

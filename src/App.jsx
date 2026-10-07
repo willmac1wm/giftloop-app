@@ -7,6 +7,8 @@ import DealBanner from './components/DealBanner';
 import AccountScreen from './components/AccountScreen';
 import AdminScreen from './components/AdminScreen';
 import WishListScreen from './components/WishListScreen';
+import InviteScreen from './components/InviteScreen';
+import AssignmentScreen from './components/AssignmentScreen';
 import {
   ExchangeScreen,
   EXCHANGE_STORAGE_KEY,
@@ -17,13 +19,33 @@ import {
 import { decodeSecretPayload } from './utils/crypto';
 import { sound } from './utils/audio';
 
+function entryFromLocation() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view');
+    const token = params.get('t') || '';
+    return {
+      inviteCode: view === 'invite' ? params.get('code') || '' : '',
+      assignmentExchangeId: view === 'assignment' ? params.get('exchange') || '' : '',
+      revealPayload: view === 'reveal' && token ? decodeSecretPayload(token) : null,
+    };
+  } catch {
+    return { inviteCode: '', assignmentExchangeId: '', revealPayload: null };
+  }
+}
+
 export default function App() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [snowEnabled, setSnowEnabled] = useState(true);
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [showAffiliateModal, setShowAffiliateModal] = useState(false);
   const [user, setUser] = useState(null);
-  const [area, setArea] = useState('exchange');
+  const [area, setArea] = useState(() => {
+    const start = entryFromLocation();
+    if (start.inviteCode) return 'invite';
+    if (start.assignmentExchangeId) return 'assignment';
+    return 'exchange';
+  });
   const [afterAccount, setAfterAccount] = useState('exchange');
   const [recovery, setRecovery] = useState(false);
 
@@ -38,8 +60,10 @@ export default function App() {
   });
 
   // URL Query inspection for direct secret reveal link (e.g. ?view=reveal&t=...)
-  const [urlPayload, setUrlPayload] = useState(null);
+  const [urlPayload, setUrlPayload] = useState(() => entryFromLocation().revealPayload);
   const [previewPayload, setPreviewPayload] = useState(null);
+  const [inviteCode, setInviteCode] = useState(() => entryFromLocation().inviteCode);
+  const [assignmentExchangeId, setAssignmentExchangeId] = useState(() => entryFromLocation().assignmentExchangeId);
 
   useEffect(() => {
     let unsubscribe = () => {};
@@ -51,6 +75,9 @@ export default function App() {
         if (cancel) return;
         if (callback?.type === 'recovery') {
           setRecovery(true);
+          const start = entryFromLocation();
+          if (start.inviteCode) setAfterAccount('invite');
+          else if (start.assignmentExchangeId) setAfterAccount('assignment');
           setArea('account');
         }
         setUser(await identity.getUser());
@@ -70,6 +97,8 @@ export default function App() {
       const params = new URLSearchParams(window.location.search);
       const view = params.get('view');
       const token = params.get('t');
+      if (view === 'invite') setInviteCode(params.get('code') || '');
+      if (view === 'assignment') setAssignmentExchangeId(params.get('exchange') || '');
       if (view === 'reveal' && token) {
         const decoded = decodeSecretPayload(token);
         if (decoded) {
@@ -107,6 +136,25 @@ export default function App() {
     sound.playClick();
     setExchange(sampleExchange());
   };
+
+  const leaveAccount = () => {
+    if (afterAccount === 'invite' && inviteCode) {
+      setArea('invite');
+      return;
+    }
+    if (afterAccount === 'assignment' && assignmentExchangeId) {
+      setArea('assignment');
+      return;
+    }
+    const next = afterAccount === 'account' || afterAccount === 'invite' || afterAccount === 'assignment' ? 'exchange' : afterAccount;
+    setArea(next);
+  };
+
+  const accountBackLabel = afterAccount === 'invite'
+    ? 'Back to the invitation'
+    : afterAccount === 'assignment'
+      ? 'Back to your recipient'
+      : 'Back to the exchange';
 
   // If user opened a direct secret link via URL:
   if (urlPayload) {
@@ -159,24 +207,51 @@ export default function App() {
       </div>
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 z-10">
+        {area === 'invite' && inviteCode && (
+          <InviteScreen
+            code={inviteCode}
+            user={user}
+            onNeedAccount={() => {
+              setAfterAccount('invite');
+              setArea('account');
+            }}
+            onDone={() => {
+              setInviteCode('');
+              setArea('wishlist');
+            }}
+          />
+        )}
+        {area === 'assignment' && assignmentExchangeId && (
+          <AssignmentScreen
+            key={`${user?.id || 'signed-out'}:${assignmentExchangeId}`}
+            exchangeId={assignmentExchangeId}
+            user={user}
+            onNeedAccount={() => {
+              setAfterAccount('assignment');
+              setArea('account');
+            }}
+          />
+        )}
         {area === 'account' && (
           <AccountScreen
             user={user}
             recovery={recovery}
+            backLabel={accountBackLabel}
             onSignedIn={(next) => {
               setUser(next);
               setRecovery(false);
-              setArea(afterAccount === 'account' ? 'exchange' : afterAccount);
+              leaveAccount();
             }}
             onSignedOut={() => {
               setUser(null);
               setArea('account');
             }}
-            onBack={() => setArea('exchange')}
+            onBack={leaveAccount}
           />
         )}
         {area === 'admin' && (
           <AdminScreen
+            key={user?.id || 'signed-out'}
             user={user}
             onNeedAccount={() => {
               setAfterAccount('admin');
@@ -186,6 +261,7 @@ export default function App() {
         )}
         {area === 'wishlist' && (
           <WishListScreen
+            key={user?.id || 'signed-out'}
             user={user}
             onNeedAccount={() => {
               setAfterAccount('wishlist');

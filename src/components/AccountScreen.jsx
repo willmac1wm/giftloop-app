@@ -3,7 +3,7 @@ import { KeyRound, LogIn, UserPlus } from "lucide-react";
 import { authErrorMessage } from "../account/api";
 import { sound } from "../utils/audio";
 
-export default function AccountScreen({ user, recovery, onSignedIn, onSignedOut, onBack }) {
+export default function AccountScreen({ user, recovery, onSignedIn, onSignedOut, onBack, backLabel = "Back to the exchange" }) {
   const [mode, setMode] = useState(recovery ? "recovery" : "login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState(user?.email || "");
@@ -141,7 +141,7 @@ export default function AccountScreen({ user, recovery, onSignedIn, onSignedOut,
         {mode !== "forgot" && mode !== "recovery" && (
           <button type="button" className="text-slate-400" onClick={() => setMode("forgot")}>Forgot password</button>
         )}
-        <button type="button" className="text-slate-400" onClick={onBack}>Back to the exchange</button>
+        <button type="button" className="text-slate-400" onClick={onBack}>{backLabel}</button>
       </div>
     </section>
   );

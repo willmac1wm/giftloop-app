@@ -12,7 +12,17 @@ export async function api(path, { method = "GET", json: body } = {}) {
     error.status = 0;
     throw error;
   }
-  const data = await response.json().catch(() => ({}));
+  const text = await response.text();
+  let data = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      const error = new Error("The account service is not reachable from this preview.");
+      error.status = response.status;
+      throw error;
+    }
+  }
   if (!response.ok) {
     const error = new Error(data.error || "Request failed.");
     error.status = response.status;

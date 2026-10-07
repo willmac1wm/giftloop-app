@@ -77,10 +77,10 @@ export default function Navbar({
               onOpenExchange();
             }}
             className={`btn btn-secondary text-xs py-2 px-2.5 ${area === 'exchange' ? 'text-white' : ''}`}
-            title="Secret Santa on this device"
+            title="Quick draw on this device. A reveal link from this draw can be opened by anyone who receives it."
           >
             <Gift size={13} />
-            <span className="hidden md:inline">Exchange</span>
+            <span className="hidden md:inline">Quick draw</span>
           </button>
 
           <button

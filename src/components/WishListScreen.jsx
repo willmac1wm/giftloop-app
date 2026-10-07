@@ -26,19 +26,42 @@ export default function WishListScreen({ user, onNeedAccount }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [ownedLists, setOwnedLists] = useState([]);
+  const [shareListId, setShareListId] = useState("");
+  const [listTitle, setListTitle] = useState("My list");
+  const [giftTitle, setGiftTitle] = useState("");
+  const [giftUrl, setGiftUrl] = useState("");
+  const [giftNotes, setGiftNotes] = useState("");
+  const [giftSize, setGiftSize] = useState("");
+  const [giftColor, setGiftColor] = useState("");
+  const [giftPriority, setGiftPriority] = useState("");
+  const [editingId, setEditingId] = useState("");
+  const [smsOptIn, setSmsOptIn] = useState(false);
+  const [smsPhone, setSmsPhone] = useState("");
+  const [emailInvites, setEmailInvites] = useState(true);
+  const [emailAssignments, setEmailAssignments] = useState(true);
+  const [emailReminders, setEmailReminders] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) return undefined;
     let cancel = false;
     setBusy(true);
-    api("/api/wishlist")
-      .then((data) => {
+    Promise.all([api("/api/wishlist"), api("/api/wish-lists"), api("/api/settings")])
+      .then(([memberships, saved, settings]) => {
         if (cancel) return;
-        const rows = data.lists || [];
+        const rows = memberships.lists || [];
         setLists(rows);
         const first = rows[0];
         setActiveId(first?.memberId || "");
         setDraft(first || null);
+        const owned = saved.lists || [];
+        setOwnedLists(owned);
+        setShareListId(owned[0]?.id || "");
+        setSmsOptIn(Boolean(settings.smsOptIn));
+        setSmsPhone(settings.phone || "");
+        setEmailInvites(settings.emailInvites !== false);
+        setEmailAssignments(settings.emailAssignments !== false);
+        setEmailReminders(settings.emailReminders !== false);
       })
       .catch((err) => {
         if (!cancel) setError(err.message);
@@ -80,9 +103,147 @@ export default function WishListScreen({ user, onNeedAccount }) {
   return (
     <section className="glass-panel p-5 max-w-2xl mx-auto space-y-4">
       <div>
-        <h2 className="text-xl font-bold font-heading text-white">My wish list</h2>
-        <p className="text-xs text-slate-400">Signed in as {user.email}. After the draw, your match shows up here too.</p>
+        <h2 className="text-xl font-bold font-heading text-white">My exchanges</h2>
+        <p className="text-xs text-slate-400">Signed in as {user.email}. Your recipient appears only after the draw.</p>
       </div>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <form
+          className="space-y-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            api("/api/wish-lists", { method: "POST", json: { title: listTitle } })
+              .then((data) => {
+                const owned = data.lists || [];
+                setOwnedLists(owned);
+                setShareListId((current) => current || owned[0]?.id || "");
+              })
+              .catch((err) => setError(err.message));
+          }}
+        >
+          <p className="text-sm text-white">Lists you keep</p>
+          <input className="glass-input w-full" aria-label="Wish list name" value={listTitle} onChange={(e) => setListTitle(e.target.value)} />
+          <button className="btn btn-secondary text-xs" type="submit">Save list on my account</button>
+          <p className="text-[11px] text-slate-400">{ownedLists.length ? `${ownedLists.length} saved` : "A saved list can be shared with more than one exchange."}</p>
+        </form>
+        <form
+          className="space-y-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const listId = shareListId || ownedLists[0]?.id;
+            if (!listId) {
+              setError("Save a list first.");
+              return;
+            }
+            const payload = {
+              title: giftTitle,
+              originalUrl: giftUrl,
+              notes: giftNotes,
+              size: giftSize,
+              color: giftColor,
+              priority: giftPriority,
+            };
+            const path = editingId ? `/api/wish-items/${editingId}` : `/api/wish-lists/${listId}/items`;
+            api(path, { method: "POST", json: payload })
+              .then((data) => {
+                setOwnedLists(data.lists || []);
+                setGiftTitle("");
+                setGiftUrl("");
+                setGiftNotes("");
+                setGiftSize("");
+                setGiftColor("");
+                setGiftPriority("");
+                setEditingId("");
+                setNotice("Gift saved. A shop link does not mark it purchased.");
+              })
+              .catch((err) => setError(err.message));
+          }}
+        >
+          <p className="text-sm text-white">{editingId ? "Edit gift" : "Add a gift"}</p>
+          <input className="glass-input w-full" aria-label="Gift name" placeholder="Wool socks or a homemade pie" value={giftTitle} onChange={(e) => setGiftTitle(e.target.value)} />
+          <input className="glass-input w-full" aria-label="Product link" placeholder="Optional product link" value={giftUrl} onChange={(e) => setGiftUrl(e.target.value)} />
+          <input className="glass-input w-full" aria-label="Gift notes" placeholder="Notes" value={giftNotes} onChange={(e) => setGiftNotes(e.target.value)} />
+          <div className="grid grid-cols-3 gap-2">
+            <input className="glass-input" aria-label="Size" placeholder="Size" value={giftSize} onChange={(e) => setGiftSize(e.target.value)} />
+            <input className="glass-input" aria-label="Color" placeholder="Color" value={giftColor} onChange={(e) => setGiftColor(e.target.value)} />
+            <input className="glass-input" aria-label="Priority" placeholder="Priority" value={giftPriority} onChange={(e) => setGiftPriority(e.target.value)} />
+          </div>
+          <button className="btn btn-secondary text-xs" type="submit">{editingId ? "Save gift" : "Add gift"}</button>
+        </form>
+      </div>
+      {ownedLists.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-sm text-white">Saved gifts</p>
+          <ul className="space-y-2">
+            {ownedLists.flatMap((list) => (list.items || []).map((item) => (
+              <li key={item.id} className="border border-white/10 rounded-lg p-3 text-sm">
+                <p className="text-white">{item.title}</p>
+                {item.size || item.color || item.priority ? (
+                  <p className="text-xs text-slate-400">{[item.size, item.color, item.priority].filter(Boolean).join(" · ")}</p>
+                ) : null}
+                {item.notes && <p className="text-slate-300">{item.notes}</p>}
+                {item.shoppingUrl && <p className="text-xs text-sky-300 break-all">{item.shoppingUrl}</p>}
+                {item.originalUrl && item.originalUrl !== item.shoppingUrl && (
+                  <p className="text-[11px] text-slate-500 break-all">Original {item.originalUrl}</p>
+                )}
+                <button
+                  type="button"
+                  className="text-xs text-sky-300 mt-1"
+                  onClick={() => {
+                    setShareListId(list.id);
+                    setEditingId(item.id);
+                    setGiftTitle(item.title || "");
+                    setGiftUrl(item.originalUrl || "");
+                    setGiftNotes(item.notes || "");
+                    setGiftSize(item.size || "");
+                    setGiftColor(item.color || "");
+                    setGiftPriority(item.priority || "");
+                  }}
+                >
+                  Edit preview
+                </button>
+              </li>
+            )))}
+          </ul>
+          {draft?.exchangeId && (
+            <div className="flex flex-wrap gap-2 items-center">
+              <select className="glass-input text-sm" aria-label="List to share" value={shareListId} onChange={(e) => setShareListId(e.target.value)}>
+                {ownedLists.map((list) => <option key={list.id} value={list.id}>{list.title}</option>)}
+              </select>
+              <button
+                type="button"
+                className="btn btn-secondary text-xs"
+                onClick={() => {
+                  api("/api/wish-lists/share", { method: "POST", json: { wishListId: shareListId, exchangeId: draft.exchangeId } })
+                    .then(() => setNotice(`Shared with ${draft.exchangeTitle}.`))
+                    .catch((err) => setError(err.message));
+                }}
+              >
+                Share with {draft.exchangeTitle}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      <form
+        className="space-y-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          api("/api/settings", {
+            method: "POST",
+            json: { smsOptIn, phone: smsPhone, emailInvites, emailAssignments, emailReminders },
+          })
+            .then(() => setNotice(smsOptIn ? "Text updates are on for this number." : "Text updates are off."))
+            .catch((err) => setError(err.message));
+        }}
+      >
+        <p className="text-sm text-white">Settings</p>
+        <label className="flex items-center gap-2 text-sm text-slate-200">
+          <input type="checkbox" checked={smsOptIn} onChange={(e) => setSmsOptIn(e.target.checked)} />
+          Text me about this exchange. An organizer typing my number is not consent.
+        </label>
+        <input className="glass-input w-full" aria-label="Phone for texts" placeholder="Phone for texts" value={smsPhone} onChange={(e) => setSmsPhone(e.target.value)} />
+        <button className="btn btn-secondary text-xs" type="submit">Save notification settings</button>
+      </form>
       {error && <p className="text-sm text-rose-300" role="alert">{error}</p>}
       {notice && <p className="text-sm text-emerald-300">{notice}</p>}
       {!busy && lists.length === 0 && !error && (
@@ -134,14 +295,19 @@ export default function WishListScreen({ user, onNeedAccount }) {
           <button className="btn btn-gold text-sm" type="submit" disabled={busy}>
             <Save size={14} /> Save wish list
           </button>
-          {draft.givingTo && (
-            <div className="rounded-xl border border-white/10 bg-slate-900/50 p-3">
-              <p className="text-sm text-white">You are giving to {draft.givingTo.name}</p>
-              {draft.givingTo.listTitle && <p className="text-xs text-slate-400 mt-1">{draft.givingTo.listTitle}</p>}
-              <p className="text-sm text-slate-200 mt-2 whitespace-pre-line">{draft.givingTo.wishes || "No wishes yet."}</p>
-              {draft.givingTo.hobbies && <p className="text-xs text-slate-400 mt-2">Hobbies: {draft.givingTo.hobbies}</p>}
-            </div>
-          )}
+          <div className="rounded-xl border border-white/10 bg-slate-900/50 p-3">
+            <p className="text-xs uppercase tracking-wide text-slate-400">My recipient</p>
+            {draft.givingTo ? (
+              <>
+                <p className="text-sm text-white mt-1">You are giving to {draft.givingTo.name}</p>
+                {draft.givingTo.listTitle && <p className="text-xs text-slate-400 mt-1">{draft.givingTo.listTitle}</p>}
+                <p className="text-sm text-slate-200 mt-2 whitespace-pre-line">{draft.givingTo.wishes || "No wishes yet."}</p>
+                {draft.givingTo.hobbies && <p className="text-xs text-slate-400 mt-2">Hobbies: {draft.givingTo.hobbies}</p>}
+              </>
+            ) : (
+              <p className="text-sm text-slate-300 mt-1">{draft.drawn ? "Your match is not ready yet." : "Names have not been drawn yet."}</p>
+            )}
+          </div>
         </form>
       )}
     </section>

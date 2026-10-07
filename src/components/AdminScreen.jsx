@@ -26,6 +26,8 @@ export default function AdminScreen({ user, onNeedAccount }) {
   const [title, setTitle] = useState("Family Secret Santa");
   const [budget, setBudget] = useState("$25");
   const [eventDate, setEventDate] = useState("");
+  const [signupDeadline, setSignupDeadline] = useState("");
+  const [exclusion, setExclusion] = useState({ giverMemberId: "", receiverMemberId: "" });
   const [person, setPerson] = useState({ name: "", email: "", phone: "" });
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -84,7 +86,7 @@ export default function AdminScreen({ user, onNeedAccount }) {
     run(async () => {
       const data = await api("/api/exchanges", {
         method: "POST",
-        json: { title, budget, eventDate, occasion: "Christmas" },
+        json: { title, budget, eventDate, signupDeadline, occasion: "Christmas" },
       });
       await loadList();
       setSelectedId(data.exchange.id);
@@ -123,12 +125,12 @@ export default function AdminScreen({ user, onNeedAccount }) {
     });
   };
 
-  const notify = (channel) => {
+  const notify = (channel, kind) => {
     sound.playClick();
     run(async () => {
       const data = await api(`/api/exchanges/${selectedId}/notify`, {
         method: "POST",
-        json: { channel, affiliate: getStoredAffiliateConfig() },
+        json: { channel, kind, affiliate: getStoredAffiliateConfig() },
       });
       setDetail(data);
       const sent = (data.results || []).filter((row) => row.status === "sent").length;
@@ -166,10 +168,11 @@ export default function AdminScreen({ user, onNeedAccount }) {
       <section className="space-y-4">
         <form onSubmit={createExchange} className="glass-panel p-4 space-y-3">
           <h3 className="font-semibold text-white">New exchange</h3>
-          <div className="grid sm:grid-cols-3 gap-2">
+          <div className="grid sm:grid-cols-2 gap-2">
             <input className="glass-input" aria-label="Exchange title" value={title} onChange={(e) => setTitle(e.target.value)} required />
             <input className="glass-input" aria-label="Budget" value={budget} onChange={(e) => setBudget(e.target.value)} />
             <input className="glass-input" aria-label="Exchange date" type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+            <input className="glass-input" aria-label="Signup deadline" type="date" value={signupDeadline} onChange={(e) => setSignupDeadline(e.target.value)} />
           </div>
           <button className="btn btn-gold text-xs" type="submit" disabled={busy}>Create exchange</button>
         </form>
@@ -183,13 +186,28 @@ export default function AdminScreen({ user, onNeedAccount }) {
               <div>
                 <h3 className="text-lg font-bold text-white">{exchange.title}</h3>
                 <p className="text-xs text-slate-400">
-                  {exchange.drawn ? "Drawn. The pairing stays private." : "Not drawn yet."}
+                  {exchange.drawn ? "Drawn. Recipients stay hidden here." : exchange.drawReady ? "Ready to draw the accepted guests." : "Waiting for at least two accepted guests."}
+                  {exchange.signupDeadline ? ` Signup deadline ${exchange.signupDeadline}.` : ""}
                   {exchange.budget ? ` Budget ${exchange.budget}.` : ""}
                 </p>
               </div>
-              <button type="button" className="btn btn-primary text-xs" onClick={draw} disabled={busy || exchange.drawn}>
-                <Shuffle size={14} /> Draw names
-              </button>
+              <div className="flex gap-2">
+                <button type="button" className="btn btn-primary text-xs" onClick={draw} disabled={busy || exchange.drawn || !exchange.drawReady}>
+                  <Shuffle size={14} /> Draw names
+                </button>
+                {exchange.drawn && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary text-xs"
+                    onClick={() => run(() => api(`/api/exchanges/${selectedId}/redraw`, { method: "POST", json: { confirm: "redraw" } }).then((data) => {
+                      setDetail(data);
+                      setNotice("The previous draw was cancelled and names were drawn again.");
+                    }))}
+                  >
+                    Cancel and redraw
+                  </button>
+                )}
+              </div>
             </div>
 
             <ul className="space-y-2">
@@ -197,8 +215,9 @@ export default function AdminScreen({ user, onNeedAccount }) {
                 <li key={member.id} className="flex items-center justify-between gap-2 text-sm border border-white/10 rounded-lg px-3 py-2">
                   <span>
                     <strong className="text-white">{member.name}</strong>
-                    <span className="text-slate-400"> {member.email || "no email"} · {member.phone || "no phone"}</span>
-                    {member.hasWishes ? <span className="text-emerald-300"> · wish list saved</span> : null}
+                    <span className="text-slate-400"> · {member.status} · {member.email || "no email"} · {member.phone || "no phone"}</span>
+                    {member.hasWishes ? <span className="text-emerald-300"> · wishes</span> : <span> · no wishes yet</span>}
+                    {member.inviteToken ? <span className="block text-xs text-slate-500 break-all">Invite code {member.inviteToken}</span> : null}
                   </span>
                   {!exchange.drawn && (
                     <button type="button" className="text-xs text-rose-300" onClick={() => removePerson(member.id)}>Remove</button>
@@ -218,12 +237,46 @@ export default function AdminScreen({ user, onNeedAccount }) {
               </form>
             )}
 
+            {!exchange.drawn && (
+              <form
+                className="grid sm:grid-cols-3 gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  run(async () => {
+                    const data = await api(`/api/exchanges/${selectedId}/exclusions`, { method: "POST", json: exclusion });
+                    setDetail(data);
+                    setExclusion({ giverMemberId: "", receiverMemberId: "" });
+                  });
+                }}
+              >
+                <select className="glass-input" aria-label="Person who cannot give" value={exclusion.giverMemberId} onChange={(e) => setExclusion({ ...exclusion, giverMemberId: e.target.value })}>
+                  <option value="">Cannot give</option>
+                  {(detail.members || []).map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+                </select>
+                <select className="glass-input" aria-label="Person they cannot draw" value={exclusion.receiverMemberId} onChange={(e) => setExclusion({ ...exclusion, receiverMemberId: e.target.value })}>
+                  <option value="">Cannot draw</option>
+                  {(detail.members || []).map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+                </select>
+                <button className="btn btn-secondary text-xs" type="submit">Add exclusion</button>
+              </form>
+            )}
+            {(detail.exclusions || []).length > 0 && (
+              <ul className="text-xs text-slate-300">
+                {detail.exclusions.map((rule) => (
+                  <li key={rule.id}>{rule.giverName} cannot draw {rule.receiverName}</li>
+                ))}
+              </ul>
+            )}
+
             <div className="flex flex-wrap gap-2">
-              <button type="button" className="btn btn-secondary text-xs" onClick={() => notify("email")} disabled={busy || !exchange.drawn || !providers?.emailReady}>
-                <Mail size={14} /> Email the links
+              <button type="button" className="btn btn-secondary text-xs" onClick={() => notify("email", "invite")} disabled={busy || !providers?.emailReady}>
+                <Mail size={14} /> Email invitations
               </button>
-              <button type="button" className="btn btn-secondary text-xs" onClick={() => notify("sms")} disabled={busy || !exchange.drawn || !providers?.smsReady}>
-                <MessageSquare size={14} /> Text the links
+              <button type="button" className="btn btn-secondary text-xs" onClick={() => notify("email", "assignment")} disabled={busy || !exchange.drawn || !providers?.emailReady}>
+                <Mail size={14} /> Email that recipients are ready
+              </button>
+              <button type="button" className="btn btn-secondary text-xs" onClick={() => notify("sms", "assignment")} disabled={busy || !exchange.drawn || !providers?.smsReady}>
+                <MessageSquare size={14} /> Text people who opted in
               </button>
             </div>
             <p className="text-[11px] text-slate-400">

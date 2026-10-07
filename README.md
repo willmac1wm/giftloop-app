@@ -2,7 +2,7 @@
 
 GiftLoop is a Secret Santa app. An organizer can draw names on this device with no account. A second path, still being connected, stores an exchange in Netlify Database for people who sign in.
 
-Guest reveal links are encoded in the URL. Anyone who receives the link can open it. That is not encryption, and it is not limited to the intended person. Assignments for signed-in members are supposed to open only for the participant who drew that name. That check is not built yet.
+Guest reveal links are encoded in the URL. Anyone who receives the link can open it. That is not encryption, and it is not limited to the intended person. A saved exchange uses a different link, `?view=assignment&exchange=`, which asks the signed-in participant and does not put the recipient’s name in the URL. That page still needs a Netlify deploy with Identity and the database turned on before it can be tried with real accounts.
 
 Paid plans are separate from permissions and are not part of this app yet.
 
@@ -21,11 +21,14 @@ These run in the browser with `npm run dev`. They do not need a database.
 
 These files exist. They do not finish the job in local Vite, because Netlify Identity and Netlify Database run on a Netlify deploy, not inside `npm run dev`.
 
-- **Sign in** (`src/components/AccountScreen.jsx`) calls `@netlify/identity`. Until Identity is enabled for the site, sign-in cannot complete. New accounts are tagged `member` in `netlify/functions/identity-signup.js`. There is no co-organizer, support, or administrator role yet.
-- **Admin** (`src/components/AdminScreen.jsx`) is the organizer’s screen for exchanges stored in the database. The API is `netlify/functions/api.js`. A signed-in user can create an exchange, add people, draw, and ask the server to email or text links. The draw on the server does not take exclusions. The admin response does not include who was paired with whom.
-- **My list** (`src/components/WishListScreen.jsx`) edits the wish-list fields on that person’s row in one exchange. It is not a wish list the member keeps and reuses across exchanges. If the draw has been saved, the signed-in giver can see the person they were assigned.
-- **Email** is Resend, and **text** is Twilio, in `src/server/messages.js`. Sending stays off until `RESEND_API_KEY` and `EMAIL_FROM`, or `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER`, are set in the Netlify environment. The server still puts the guest reveal link in the message, so anyone who receives it can open the assignment. There is no opt-in record, STOP handling, quiet hours, reminder schedule, or delivery webhook.
-- Database tables are exchanges, members, assignments, and deliveries (`db/schema.js`). The migration is `netlify/database/migrations/20261007111631_accounts`. Netlify applies it on deploy. `npm run db:migrate` is only for a local Netlify database.
+- **Sign in** (`src/components/AccountScreen.jsx`) calls `@netlify/identity`. Until Identity is enabled for the site, sign-in cannot complete. New accounts are tagged `member` in `netlify/functions/identity-signup.js`. An invitation or assignment link stays in place while the person signs in, then returns them to that page. Identity signup does not create support or administrator accounts. A co-organizer flag can be stored on one exchange; the organizer screen does not offer that control yet.
+- **Admin** is the organizer dashboard for a saved exchange: who is invited, accepted, or declined, whether wishes exist, whether the draw is ready, exclusions, and whether a notice was sent. Co-organizers can be invited onto that exchange. The dashboard does not list recipients. Cancelling a draw requires an explicit redraw. The server draw uses the same pairing rules as the device draw, including exclusions, and a second tap does not create a second set of pairs.
+- **Invitations** use `?view=invite&code=`. That page can accept or decline membership. It does not contain an assignment.
+- **Account assignments** use `?view=assignment&exchange=`. The page asks the matching signed-in member for their recipient. The link itself does not include the name. Older guest links that already contain a name stay readable by anyone who has them.
+- **Wish lists** can be saved on the member account, shared with an exchange, and reserved by the giver. The owner’s list does not show who reserved an item. Opening a shop link does not mark it purchased.
+- **Email and text** still need Resend and Twilio environment variables. Assignment notices say the recipient is ready and link back to the sign-in page. Texts go only to someone who opted in. Each person can be sent the same notice up to three times. There is no reminder queue that survives a failed deploy, no STOP webhook, and no quiet hours.
+- **Shopping links** pasted onto a wish are checked before they are stored: web links only, known retailer domains, short links left unresolved, and private network addresses rejected. Approved retailers get the default affiliate tag. Other stores keep the ordinary link. There is no separate administrator screen for merchant rules yet.
+- Database tables cover exchanges, members, assignments, deliveries, exclusions, wish lists, wish items, reservations, and notification preferences (`db/schema.js`). Migrations are `netlify/database/migrations/20261007111631_accounts` and `netlify/database/migrations/20261007115544_shared_exchange`. Netlify applies them on deploy. `npm run db:migrate` is only for a local Netlify database.
 
 No concrete limit in this app requires replacing Netlify Database, Netlify Identity, Netlify Functions, Resend, or Twilio. Supabase and Inngest were a suggestion. They are not the stack, and this repo does not install them.
 
@@ -39,23 +42,19 @@ Permissions below are not subscription tiers. Free use is the current product. P
 
 | Role | Target access | In this branch |
 | --- | --- | --- |
-| Visitor | Public pages and an invitation | The site is public. There is no invitation page. |
-| Member | Account, wish lists they own, their own assignment, notification choices | Sign-in UI and a per-exchange wish-list row |
-| Organizer | One exchange: invites, exclusions, draw | Device wizard, plus the database Admin screen |
-| Co-organizer | Help manage one exchange | Not built |
-| Support staff | Tickets, account help, and failed email or text, without opening assignments | Not built. Delivery rows exist for organizers only. |
-| Administrator | Merchants, affiliate setup, and who has staff access | Not built. Affiliate codes are per browser. |
+| Visitor | Public pages and an invitation | The site is public. `?view=invite&code=` accepts or declines and does not show an assignment. |
+| Member | Account, wish lists they own, their own assignment, notification choices | Sign-in, a wish-list page, notification settings, and an assignment page that returns only that member’s recipient |
+| Organizer | One exchange: invites, exclusions, draw | Device wizard, plus the database Admin screen. The screen does not list recipients. |
+| Co-organizer | Help manage one exchange | The API can store the role. The organizer screen does not grant it yet. |
+| Support staff | Tickets, account help, and failed email or text, without opening assignments | Not built. Delivery rows are visible to the organizer. |
+| Administrator | Merchants, affiliate setup, and who has staff access | Not built. Affiliate codes are per browser, and wish links use the sample tags until a merchant screen exists. |
 
 Next implementation work, in order:
 
-1. Keep the no-account draw. Keep saying that a guest reveal link opens for anyone who has it.
-2. Finish the Netlify Identity and database path on a deploy: create an exchange, sign in as a member, save a wish list, draw with the same exclusion rules as the device draw.
-3. When a signed-in member opens an assignment, require that account. Do not put the recipient’s name in that URL. Leave guest links on the no-account flow.
-4. Store wish lists on the member, and let them attach one to an exchange.
-5. Add co-organizer on a single exchange. Organizers and co-organizers still do not get the pairing list.
-6. Send email and text only after the product rules exist: email from the app, SMS only with that person’s opt-in, and a record of success or failure. Do not start a new draw when a send is retried.
-7. Support staff can see tickets and delivery failures, not assignments. Administrators can manage merchant and affiliate settings and staff access.
-8. Reminders can be scheduled later with Netlify scheduled functions. Replace that only if a real limit shows up.
+1. Prove a saved exchange on a Netlify deploy with Identity enabled: several accounts, one failed invitation, one impossible exclusion, one ordinary retailer link, and one phone that has not opted in.
+2. Add a reminder queue that survives a deploy, stops after cancel or opt-out, and does not draw names again.
+3. Add support tools and a merchant admin screen. Keep those separate from the organizer’s Admin screen, and keep assignments out of the support view.
+4. Make the phone browser comfortable, then package it with Capacitor. Packaging is not an App Store release.
 
 ## Local development
 
