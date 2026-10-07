@@ -30,6 +30,34 @@ const EXTRA = [
   { category: 'Everyday carry', name: 'Leather card wallet', price: '$28', desc: 'Slim wallet that holds cards and a folded bill', shopFor: 'man', ages: ADULT },
 ];
 
+const PHOTOS = {
+  play: '/shopping/photo-play.jpg',
+  home: '/shopping/photo-home.jpg',
+  cozy: '/shopping/photo-cozy.jpg',
+  kitchen: '/shopping/photo-kitchen.jpg',
+  tech: '/shopping/photo-tech.jpg',
+  kids: '/shopping/photo-kids.jpg',
+  style: '/shopping/photo-style.jpg',
+  outdoors: '/shopping/photo-outdoors.jpg',
+};
+
+const PHOTO_BY_NAME = {
+  'Electric Candle Warmer Lamp with Timer': PHOTOS.cozy,
+  'Simmer Pot Potpourri Holiday Blend': PHOTOS.cozy,
+  'Silk sleep mask': PHOTOS.style,
+  'Shower Beer Can / Beverage Holder': PHOTOS.outdoors,
+  'USB Rechargeable Arc Candle Lighter': PHOTOS.outdoors,
+};
+
+const PHOTO_BY_CATEGORY = {
+  'Playful Gifts': PHOTOS.play,
+  'Cozy & Home': PHOTOS.home,
+  'Foodie & Kitchen': PHOTOS.kitchen,
+  'Tech & EDC Gadgets': PHOTOS.tech,
+  'For kids': PHOTOS.kids,
+  'Everyday carry': PHOTOS.style,
+};
+
 function priceValue(price) {
   return Number(String(price).replace(/[^0-9.]/g, '')) || 0;
 }
@@ -45,11 +73,16 @@ export function giftCatalog() {
       category: group.category.replace(/\s*\(.*\)$/, ''),
       shopFor: tags.shopFor || 'anyone',
       ages: tags.ages || TEEN_UP,
+      photo: PHOTO_BY_NAME[item.name] || PHOTO_BY_CATEGORY[group.category.replace(/\s*\(.*\)$/, '')] || PHOTOS.home,
     };
   }));
   return [
     ...fromCurated,
-    ...EXTRA.map((item) => ({ ...item, priceValue: priceValue(item.price) })),
+    ...EXTRA.map((item) => ({
+      ...item,
+      priceValue: priceValue(item.price),
+      photo: PHOTO_BY_CATEGORY[item.category] || PHOTOS.home,
+    })),
   ];
 }
 

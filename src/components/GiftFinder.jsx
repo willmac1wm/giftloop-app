@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Check, ExternalLink, Plus, Search, X } from 'lucide-react';
 import { AGE_BANDS, SHOP_FOR } from '../data/giftProfile';
 import { budgetCeiling } from '../utils/shop';
-import { generateStoreSearchUrl } from '../utils/affiliate';
+import { CENTER_STORES, generateStoreSearchUrl } from '../utils/affiliate';
+import StoreConcourse from './StoreConcourse';
 import { FINDER_CATEGORIES, filterGifts } from '../utils/giftFinder';
 import { sound } from '../utils/audio';
 
@@ -44,6 +45,7 @@ export default function GiftFinder({
   readOnly = false,
   onChange,
 }) {
+  const [activeStore, setActiveStore] = useState('amazon');
   const [query, setQuery] = useState('');
   const [priceId, setPriceId] = useState(() => defaultPriceId(budget));
   const [category, setCategory] = useState('All');
@@ -95,6 +97,10 @@ export default function GiftFinder({
   return (
     <div className="gift-finder">
       <section className="gift-finder-results">
+        <StoreConcourse activeId={activeStore} onSelect={setActiveStore} label="Choose a store" />
+        <p className="store-concourse-note">
+          Shopping at {CENTER_STORES.find((store) => store.id === activeStore)?.name}. Every door uses a Gift Loop referral link.
+        </p>
         <div className="gift-finder-search">
           <Search size={16} />
           <input
@@ -159,9 +165,11 @@ export default function GiftFinder({
           <ul className="gift-grid">
             {gifts.map((gift) => {
               const added = lines.some((line) => line.toLowerCase() === gift.name.toLowerCase());
-              const href = generateStoreSearchUrl(gift.name, 'amazon', affiliate);
+              const storeName = CENTER_STORES.find((store) => store.id === activeStore)?.name || 'Amazon';
+              const href = generateStoreSearchUrl(gift.name, activeStore, affiliate);
               return (
                 <li key={gift.name} className="gift-card">
+                  <img src={gift.photo} alt="" />
                   <div className="gift-card-price">{gift.price}</div>
                   <h3>{gift.name}</h3>
                   <p>{gift.desc}</p>
@@ -173,9 +181,16 @@ export default function GiftFinder({
                       </button>
                     )}
                     <a className="btn btn-secondary text-xs" href={href} target="_blank" rel="noopener noreferrer">
-                      Amazon
+                      Shop at {storeName}
                       <ExternalLink size={12} />
                     </a>
+                  </div>
+                  <div className="gift-card-stores">
+                    {CENTER_STORES.map((store) => (
+                      <a key={store.id} href={generateStoreSearchUrl(gift.name, store.id, affiliate)} target="_blank" rel="noopener noreferrer">
+                        {store.name}
+                      </a>
+                    ))}
                   </div>
                 </li>
               );
@@ -185,9 +200,9 @@ export default function GiftFinder({
         {query.trim() && (
           <div className="gift-finder-store-row">
             <span>Search stores for “{query.trim()}”</span>
-            {['amazon', 'walmart', 'target', 'bestbuy', 'basspro'].map((store) => (
-              <a key={store} href={generateStoreSearchUrl(query.trim(), store, affiliate)} target="_blank" rel="noopener noreferrer">
-                {store}
+            {CENTER_STORES.map((store) => (
+              <a key={store.id} href={generateStoreSearchUrl(query.trim(), store.id, affiliate)} target="_blank" rel="noopener noreferrer">
+                {store.name}
               </a>
             ))}
           </div>

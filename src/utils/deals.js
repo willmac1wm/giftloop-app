@@ -55,9 +55,19 @@ export function dealLinks(config = DEFAULT_AFFILIATE_CONFIG, now = new Date()) {
       },
       {
         id: 'basspro',
-        name: 'Bass Pro',
+        name: 'Bass Pro Shops',
         href: withTag(
           'https://www.basspro.com/shop/en/SearchDisplay?searchTerm=sale',
+          enabled,
+          'affCode',
+          config.bassProPartnerId,
+        ),
+      },
+      {
+        id: 'cabelas',
+        name: "Cabela's",
+        href: withTag(
+          'https://www.cabelas.com/shop/en/SearchDisplay?searchTerm=sale',
           enabled,
           'affCode',
           config.bassProPartnerId,
