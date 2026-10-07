@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Gift } from "lucide-react";
 import { api } from "../account/api";
+import { GiftVibeCard } from "./GiftVibe";
 import ShopDisclosure from "./ShopDisclosure";
 
 export default function AssignmentScreen({ exchangeId, user, onNeedAccount, onOpenWishlist }) {
@@ -59,6 +60,7 @@ export default function AssignmentScreen({ exchangeId, user, onNeedAccount, onOp
             <button type="button" className="btn btn-secondary text-sm" onClick={onOpenWishlist}>My wish list</button>
           </div>
           <h3 className="text-base font-semibold text-white">My recipient&apos;s wishes</h3>
+          <GiftVibeCard vibe={assignment.giftVibe} />
           <ShopDisclosure />
           <ul className="space-y-2">
             {(assignment.items || []).map((item) => (

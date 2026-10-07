@@ -14,7 +14,7 @@ export function deliveryDecision({ channel, kind, prefs, sentCount = 0, resend =
   if (channel === "email" && prefs && kind === "invite" && prefs.emailInvites === false) {
     return { send: false, reason: "Invitation email is turned off." };
   }
-  if (channel === "email" && prefs && kind === "reminder" && prefs.emailReminders === false) {
+  if (channel === "email" && prefs && (kind === "reminder" || kind === "reunion") && prefs.emailReminders === false) {
     return { send: false, reason: "Reminder email is turned off." };
   }
   if (sentCount >= MAX_SENDS) return { send: false, reason: "Send limit reached." };

@@ -33,6 +33,18 @@ These files exist. They do not finish the job in local Vite, because Netlify Ide
 
 No concrete limit in this app requires replacing Netlify Database, Netlify Identity, Netlify Functions, Resend, or Twilio. Supabase and Inngest were a suggestion. They are not the stack, and this repo does not install them.
 
+## Returning groups and gift preferences
+
+Implemented on this branch; deployment and live account/iPhone checks are still required:
+
+- Home offers **Start another group** after a signed-in member has joined an exchange. The new saved exchange includes only the organizer. The member can explicitly reuse their own list after reviewing its contents. No guests, invitations, exclusions, assignments, or notification consent are copied.
+- **Your groups & traditions** is a collapsed Home section. Accepted members can see that exchange’s theme, written rules, memories, and approved photo. Only the organizer can edit or clear them. One compressed raster photo (up to 450,000 data-URL characters) is stored with the private record; there is no public photo feed or remote image import.
+- **Plan our next exchange** reuses the title, occasion, budget, theme, and written rules after review. The date is selected afresh. Photos and memories stay with the original exchange, and invitations must be sent again. These are new exchanges linked conceptually through their saved traditions, not an automatically re-enrolled membership group.
+- An organizer can schedule, replace, or cancel one email planning reminder per exchange. It goes only to that organizer and uses the existing reminder queue, email preference, and quiet hours. Email provider setup and a published scheduled function are required; a saved reminder is not proof of delivery.
+- **My gift vibe** is an expandable section of My wish list: interests, things to avoid, secondhand/homemade/experience preferences, and “Choose from my list,” “Use my list for inspiration,” or “Surprise me.” The account owner can edit or clear it. It is returned on the existing authorized recipient page, not in organizer or staff payloads. This stores explicit preferences; it does not infer interests or change affiliate ranking.
+
+The migration `20261007235032_group_retention` adds the preferences and traditions tables. Run `npm run test:retention` for local PGlite integration coverage of all migrations, account/group authorization, copying boundaries, wish-list ownership/review, photo approval, reminder replacement/cancellation, and clearing data. This does not substitute for Netlify Identity, live email delivery, concurrent hosted Postgres sessions, or real iPhone testing. No live-party synchronization was added.
+
 ## White Elephant
 
 White Elephant is on this branch again (`src/components/WhiteElephantTab.jsx`) and opens from the menu. It stays on this device, like the no-account draw. Merging the earlier Secret Santa commits by themselves would have deleted that file; this branch puts it back.

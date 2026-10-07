@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../account/api";
+import GroupContinuity from "./GroupContinuity";
 import DealBanner from "./DealBanner";
 import { NEXT_ACTION_LABEL, deviceNextAction } from "../exchange/progress";
 
@@ -22,6 +23,7 @@ export default function HomeScreen({
   onOpenManage,
   onRevealSaved,
   onSavedFocus,
+  onOpenWishlist,
 }) {
   const [saved, setSaved] = useState([]);
   const [savedNote, setSavedNote] = useState("");
@@ -144,6 +146,8 @@ export default function HomeScreen({
           Create another exchange
         </button>
       )}
+
+      {user && <GroupContinuity key={user.id} user={user} onCreated={onOpenManage} onOpenWishlist={onOpenWishlist} />}
 
       <p className="home-note">
         Have an invitation? Open the link from your email or text. A private invitation works only for the invited account. An open join link says when anyone with it can ask to join.

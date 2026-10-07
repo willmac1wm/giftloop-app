@@ -5,7 +5,8 @@ import { assignmentNotice } from "../../src/server/assignments.js";
 import { providerEnv, readProviders, sendEmail, sendSms } from "../../src/server/messages.js";
 import { deliveryDecision } from "../../src/server/notifyPolicy.js";
 
-function reminderText(exchange, origin) {
+function reminderText(exchange, origin, kind) {
+  if (kind === "reunion") return `Ready to plan another ${exchange.title || "gift exchange"}?\n\nReview your traditions and refresh your wishes on GiftLoop:\n${origin}/\n\nYou requested this planning reminder. No guests have been invited.`;
   const url = `${origin}/?view=assignment&exchange=${exchange.id}`;
   if (exchange.drawnAt) return assignmentNotice({ title: exchange.title, url });
   return `Reminder for ${exchange.title || "Secret Santa"}.\n\nOpen GiftLoop:\n${url}\n\nThis message does not include anyone's assignment.`;
@@ -36,7 +37,7 @@ export default async function handler() {
     const [prefs] = person?.userId
       ? await db.select().from(notificationPrefs).where(eq(notificationPrefs.userId, person.userId)).limit(1)
       : [];
-    if (!person || !exchange || person.status === "declined") {
+    if (!person || !exchange || person.status === "declined" || (job.kind === "reunion" && (exchange.organizerId !== person.userId || person.status !== "accepted"))) {
       await db.update(notificationJobs).set({ status: "cancelled", detail: "The exchange or person is no longer active." }).where(eq(notificationJobs.id, job.id));
       continue;
     }
@@ -53,7 +54,7 @@ export default async function handler() {
       channel: job.channel,
       kind: job.kind,
       prefs: prefs || null,
-      sentCount: prior.length,
+      sentCount: job.kind === "reunion" ? 0 : prior.length,
       resend: false,
       memberStatus: person.status,
       now,
@@ -77,7 +78,7 @@ export default async function handler() {
       continue;
     }
     try {
-      const text = reminderText(exchange, origin);
+      const text = reminderText(exchange, origin, job.kind);
       const providerMessageId = job.channel === "email"
         ? await sendEmail({ to: person.email, subject: `Reminder for ${exchange.title}`, text, env })
         : await sendSms({ to: prefs.phone, text, env });

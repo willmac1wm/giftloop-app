@@ -368,6 +368,7 @@ export default function App() {
             onOpenManage={(id) => openSaved(id, false)}
             onRevealSaved={(id) => openSaved(id, true)}
             onSavedFocus={rememberSaved}
+            onOpenWishlist={() => setArea('wishlist')}
           />
         )}
         {area === 'admin' && (

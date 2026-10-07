@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import GiftVibe from "./GiftVibe";
 import { Gift, Save } from "lucide-react";
 import { api } from "../account/api";
 import { AGE_BANDS, SHOP_FOR } from "../data/giftProfile";
@@ -96,6 +97,7 @@ export default function WishListScreen({ user, onNeedAccount, exchangeId = "" })
         <h2 className="text-xl font-bold font-heading text-white">My wish list</h2>
         <p className="text-xs text-slate-400">Signed in as {user.email}. Add a gift, then share the list with an exchange. Notification preferences are in Account.</p>
       </div>
+      <GiftVibe />
       <div className="grid sm:grid-cols-2 gap-3">
         <form
           className="space-y-2"

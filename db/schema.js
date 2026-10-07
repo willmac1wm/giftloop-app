@@ -133,3 +133,24 @@ export const merchants = pgTable("merchants", {
   enabled: boolean("enabled").notNull().default(true),
   countries: text("countries").notNull().default(""),
 });
+
+export const giftPreferences = pgTable("gift_preferences", {
+  userId: text("user_id").primaryKey(),
+  interests: text("interests").notNull().default(""),
+  avoid: text("avoid").notNull().default(""),
+  approach: text("approach").notNull().default("inspiration"),
+  secondhand: boolean("secondhand").notNull().default(false),
+  handmade: boolean("handmade").notNull().default(false),
+  experiences: boolean("experiences").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const exchangeTraditions = pgTable("exchange_traditions", {
+  exchangeId: uuid("exchange_id").primaryKey().references(() => exchanges.id, { onDelete: "cascade" }),
+  theme: text("theme").notNull().default(""),
+  rules: text("rules").notNull().default(""),
+  memory: text("memory").notNull().default(""),
+  photo: text("photo").notNull().default(""),
+  photoApproved: boolean("photo_approved").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});

@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { getUser } from "@netlify/identity";
 import { db } from "../../db/index.js";
 import {
+  giftPreferences,
   assignments,
   deliveries,
   exclusions,
@@ -15,6 +16,7 @@ import {
   wishItems,
   wishLists,
 } from "../../db/schema.js";
+import { cleanVibe } from "../../src/retention/model.js";
 import { AGE_BANDS, SHOP_FOR } from "../../src/data/giftProfile.js";
 import {
   acceptDecision,
@@ -680,7 +682,9 @@ async function handleAssignment(user, exchangeId) {
       reservedByMe: held.some((row) => row.itemId === item.id && row.memberId === member.id),
     }));
   }
+  const [profile] = receiver?.userId ? await db.select().from(giftPreferences).where(eq(giftPreferences.userId, receiver.userId)).limit(1) : [];
   return json({
+    giftVibe: profile ? cleanVibe(profile) : null,
     ready: true,
     exchangeId,
     exchangeTitle: exchange.title,

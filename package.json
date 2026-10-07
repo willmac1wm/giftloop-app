@@ -11,7 +11,8 @@
     "smoke": "node scripts/smoke-draw.mjs",
     "test:integration": "node scripts/integration-api.mjs",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "netlify database migrations apply"
+    "db:migrate": "netlify database migrations apply",
+    "test:retention": "node scripts/test-retention.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.2",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.2",
+    "@electric-sql/pglite": "^0.2.17",
     "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
