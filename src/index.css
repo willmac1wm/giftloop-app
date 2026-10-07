@@ -437,6 +437,56 @@ h1, h2, h3, h4, .font-heading {
   gap: 8px;
 }
 
+.deal-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(245, 158, 11, 0.22), transparent 42%),
+    rgba(22, 32, 53, 0.9);
+}
+
+.deal-banner-copy {
+  flex: 1 1 220px;
+}
+
+.deal-banner-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fde68a;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+
+.deal-banner-copy p {
+  margin: 4px 0 0;
+  color: #cbd5e1;
+  font-size: 0.8rem;
+}
+
+.deal-banner-stores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
+
+.deal-banner-stores a {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .btn-text {
   background: linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%);
   color: #ffffff;

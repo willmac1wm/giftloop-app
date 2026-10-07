@@ -1,6 +1,6 @@
 /** First-run Secret Santa event, and how a saved event decides wizard vs studio. */
 
-export const WIZARD_STEPS = ['start', 'names', 'exclusions', 'details', 'message', 'draw', 'share'];
+export const WIZARD_STEPS = ['start', 'names', 'wishes', 'exclusions', 'details', 'message', 'draw', 'share'];
 
 let idSeq = 0;
 
@@ -9,8 +9,18 @@ export function makeId(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${idSeq.toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
-export function createNameRow() {
-  return { id: makeId('p'), name: '', email: '', phone: '' };
+export function createNameRow(partial = {}) {
+  return {
+    id: makeId('p'),
+    name: '',
+    email: '',
+    phone: '',
+    listTitle: '',
+    ageBand: '',
+    shopFor: '',
+    wishes: '',
+    ...partial,
+  };
 }
 
 export function createBlankSecretSantaEvent() {
@@ -30,6 +40,10 @@ export function createBlankSecretSantaEvent() {
     organizerName: '',
     organizerEmail: '',
     organizerPhone: '',
+    organizerListTitle: '',
+    organizerAgeBand: '',
+    organizerShopFor: '',
+    organizerWishes: '',
     includeOrganizer: true,
     nameRows: [createNameRow(), createNameRow()],
     exclusionsChoice: null,
@@ -50,7 +64,6 @@ export function materializeParticipants(event) {
   if (event.includeOrganizer !== false && organizerName && event.organizerId) {
     const prev = existing.get(event.organizerId) || {};
     next.push({
-      wishlist: [],
       likes: '',
       dislikes: '',
       ...prev,
@@ -58,6 +71,10 @@ export function materializeParticipants(event) {
       name: organizerName,
       email: (event.organizerEmail || '').trim(),
       phone: (event.organizerPhone || '').trim(),
+      listTitle: (event.organizerListTitle || '').trim(),
+      ageBand: event.organizerAgeBand || '',
+      shopFor: event.organizerShopFor || '',
+      wishlist: wishLines(event.organizerWishes, prev.wishlist),
       isOrganizer: true,
     });
   }
@@ -67,7 +84,6 @@ export function materializeParticipants(event) {
     if (!name) continue;
     const prev = existing.get(row.id) || {};
     next.push({
-      wishlist: [],
       likes: '',
       dislikes: '',
       ...prev,
@@ -75,6 +91,10 @@ export function materializeParticipants(event) {
       name,
       email: (row.email || '').trim(),
       phone: (row.phone || '').trim(),
+      listTitle: (row.listTitle || '').trim(),
+      ageBand: row.ageBand || '',
+      shopFor: row.shopFor || '',
+      wishlist: wishLines(row.wishes, prev.wishlist),
       isOrganizer: false,
     });
   }
@@ -99,6 +119,55 @@ export function withGiverContact(event, giverId, fields) {
       giver: apply(match.giver),
     })),
     nameRows: (event.nameRows || []).map((row) => (row.id === giverId ? { ...row, ...fields } : row)),
+  };
+}
+
+function wishLines(text, previous) {
+  if (text == null || String(text).trim() === '') return previous || [];
+  return String(text).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+}
+
+const EMAIL_IN_LINE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+
+export function parsePeopleList(text) {
+  const people = [];
+  const lines = String(text || '').split(/\r?\n/);
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line || people.length >= 100) continue;
+    const emailMatch = line.match(EMAIL_IN_LINE);
+    const email = emailMatch ? emailMatch[0] : '';
+    let rest = email ? line.replace(email, ' ') : line;
+    const phoneMatch = rest.match(/(\+?\d[\d\s().-]{6,}\d)/);
+    const phone = phoneMatch ? phoneMatch[1].trim() : '';
+    if (phone) rest = rest.replace(phone, ' ');
+    const name = rest.replace(/[,|;<>]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!name && !email) continue;
+    people.push({
+      name: name || email.split('@')[0],
+      email,
+      phone,
+    });
+  }
+  return people;
+}
+
+export function applyImportedPeople(event, people) {
+  if (!people || people.length === 0) return event;
+  const [first, ...rest] = people;
+  return {
+    ...event,
+    organizerName: first.name,
+    organizerEmail: first.email,
+    organizerPhone: first.phone,
+    includeOrganizer: true,
+    nameRows: (rest.length ? rest : [{}]).map((person) => createNameRow({
+      name: person.name || '',
+      email: person.email || '',
+      phone: person.phone || '',
+    })),
+    matches: null,
+    participants: [],
   };
 }
 

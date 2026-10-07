@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import SecretRevealView from './components/SecretRevealView';
 import IosInstallModal from './components/IosInstallModal';
 import AffiliateSettingsModal from './components/AffiliateSettingsModal';
+import DealBanner from './components/DealBanner';
 import {
   ExchangeScreen,
   EXCHANGE_STORAGE_KEY,
@@ -112,6 +113,10 @@ export default function App() {
         onOpenInstallModal={() => setShowInstallModal(true)}
         onOpenAffiliateModal={() => setShowAffiliateModal(true)}
       />
+
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 z-10">
+        <DealBanner />
+      </div>
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 z-10">
         <ExchangeScreen

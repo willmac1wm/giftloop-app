@@ -2,8 +2,10 @@ import { initialSecretSantaEvent } from '../src/data/mockData.js';
 import {
   createBlankSecretSantaEvent,
   isUntouchedSeedDemo,
+  applyImportedPeople,
   materializeParticipants,
   normalizeLoadedEvent,
+  parsePeopleList,
   pruneExclusions,
 } from '../src/data/eventState.js';
 import {
@@ -16,7 +18,8 @@ import { generateSecretSantaDraw } from '../src/utils/shuffle.js';
 import { buildRevealPayload, emailHref, smsHref } from '../src/utils/revealLink.js';
 import { decodeSecretPayload, encodeSecretPayload } from '../src/utils/crypto.js';
 import { DEFAULT_AFFILIATE_CONFIG, generateStoreSearchUrl } from '../src/utils/affiliate.js';
-import { ideasWithinBudget } from '../src/utils/shop.js';
+import { dealLinks, isPrimeBigDealDays } from '../src/utils/deals.js';
+import { ideasWithinBudget, shopQuery } from '../src/utils/shop.js';
 
 function assert(condition, message) {
   if (!condition) {
@@ -166,6 +169,34 @@ assert(text.includes('body=Hi%20Bea'), 'text body is included');
 
 const amazon = generateStoreSearchUrl('wool socks', 'amazon', DEFAULT_AFFILIATE_CONFIG);
 assert(amazon.includes('tag=giftloop-20'), amazon);
+
+const duringSale = dealLinks(DEFAULT_AFFILIATE_CONFIG, new Date('2026-10-06T18:00:00.000Z'));
+assert(duringSale.live && duringSale.title.includes('Prime Big Deal Days'), duringSale.title);
+assert(duringSale.stores[0].href.includes('primebigdealdays') && duringSale.stores[0].href.includes('tag=giftloop-20'), duringSale.stores[0].href);
+assert(duringSale.stores.every((store) => store.href.includes('giftloop')), 'every deal link carries a referral id');
+const afterSale = dealLinks(DEFAULT_AFFILIATE_CONFIG, new Date('2026-10-09T00:00:00.000Z'));
+assert(!afterSale.live && afterSale.stores[0].href.includes('/deals'), afterSale.stores[0].href);
+assert(isPrimeBigDealDays(new Date('2026-10-07T20:00:00.000Z')), 'sale still open on Oct 7 evening Pacific');
+
+const imported = parsePeopleList('Ada, ada@example.com\nBea bea@example.com 555-0101\n');
+assert(imported.length === 2 && imported[0].name === 'Ada' && imported[1].phone.includes('555'), JSON.stringify(imported));
+const importedEvent = applyImportedPeople(blank, imported);
+const importedPeople = materializeParticipants({
+  ...importedEvent,
+  organizerListTitle: "Ada's list",
+  organizerAgeBand: '25-34',
+  organizerShopFor: 'woman',
+  organizerWishes: 'Wool socks\nCandle',
+});
+assert(importedPeople[0].wishlist.join('|') === 'Wool socks|Candle', importedPeople[0].wishlist.join('|'));
+const query = shopQuery({
+  receiverName: 'Ada',
+  wishlist: [],
+  budget: '$25',
+  ageBand: '25-34',
+  shopFor: 'woman',
+});
+assert(query.includes('woman') && query.includes('under $25'), query);
 const ideas = ideasWithinBudget('$25');
 assert(ideas.length >= 3, 'shop ideas for a $25 budget');
 assert(ideas.every((item) => item.priceValue <= 30), `idea over budget: ${ideas.map((item) => item.price).join(', ')}`);
