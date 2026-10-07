@@ -26,6 +26,7 @@ export default function GroupContinuity({ user, onCreated, onOpenWishlist }) {
     try { await work(); } catch (err) { setError(err.message); } finally { setBusy(false); }
   }
   function start(previous = null) {
+    if (busy) return;
     setSource(previous); setTradition(null); setCreate(true); setError(""); setNotice("");
     setDraft({ title: previous?.title || "", occasion: previous?.occasion || "Gift exchange", budget: previous?.budget || "$25", eventDate: "", wishListId: "", wishesReviewed: false });
   }
@@ -85,7 +86,7 @@ export default function GroupContinuity({ user, onCreated, onOpenWishlist }) {
         <form className="space-y-2" onSubmit={e => { e.preventDefault(); run(async () => { await api(`/api/retention/reminder/${source.id}`, { method: 'POST', json: { runAt: new Date(when).toISOString() } }); await openMemory(source); setNotice('Your planning reminder is saved.'); }); }}><label className="block text-sm">Time in {Intl.DateTimeFormat().resolvedOptions().timeZone}<input className="glass-input w-full" type="datetime-local" required value={when} onChange={e => setWhen(e.target.value)} /></label><button className="btn btn-secondary text-sm" disabled={busy}>Save my reminder</button></form>
         {reminder && <button type="button" className="underline text-sm mt-2" disabled={busy} onClick={() => run(async () => { await api(`/api/retention/reminder/${source.id}`, { method: 'POST', json: { cancel: true } }); setReminder(null); setNotice('Planning reminder cancelled.'); })}>Cancel reminder</button>}
       </details>}
-      <button type="button" className="underline text-sm" onClick={() => setTradition(null)}>Close</button>
+      <button type="button" className="underline text-sm" disabled={busy} onClick={() => setTradition(null)}>Close</button>
     </div>}
     {error && <p role="alert" className="text-sm text-rose-300">{error}</p>}{notice && <p role="status" className="text-sm text-emerald-300">{notice}</p>}
   </div>;

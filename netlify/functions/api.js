@@ -16,6 +16,7 @@ import {
   wishItems,
   wishLists,
 } from "../../db/schema.js";
+import { handleRetention } from "../../src/server/retentionRoutes.js";
 import { cleanVibe } from "../../src/retention/model.js";
 import { AGE_BANDS, SHOP_FOR } from "../../src/data/giftProfile.js";
 import {
@@ -1138,6 +1139,7 @@ export default async function handler(req, context) {
 
     const user = await currentUser(req);
     if (!user?.id) return json({ error: "Sign in to continue." }, 401);
+    if (parts[1] === "retention") return handleRetention(req, user, body);
     if (parts[1] === "invites" && parts[2] && parts[3] === "accept" && req.method === "POST") {
       return handleInviteAccept(user, parts[2]);
     }
@@ -1232,6 +1234,11 @@ export default async function handler(req, context) {
 export const config = {
   path: [
     "/api/session",
+    "/api/retention/vibe",
+    "/api/retention/history",
+    "/api/retention/create",
+    "/api/retention/traditions/:id",
+    "/api/retention/reminder/:id",
     "/api/exchanges",
     "/api/exchanges/:id",
     "/api/exchanges/:id/members",
