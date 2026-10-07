@@ -133,8 +133,9 @@ export default function AdminScreen({ user, onNeedAccount }) {
         json: { channel, kind, affiliate: getStoredAffiliateConfig() },
       });
       setDetail(data);
-      const sent = (data.results || []).filter((row) => row.status === "sent").length;
-      setNotice(`${channel === "email" ? "Email" : "Text"} finished. ${sent} sent.`);
+      const accepted = (data.results || []).filter((row) => row.status === "accepted" || row.status === "sent" || row.status === "delivered").length;
+      const failed = (data.results || []).filter((row) => row.status === "failed").length;
+      setNotice(`${channel === "email" ? "Email" : "Text"} finished. ${accepted} accepted by the provider, ${failed} failed. Accepted is not the same as delivered.`);
     });
   };
 
@@ -277,6 +278,17 @@ export default function AdminScreen({ user, onNeedAccount }) {
               </button>
               <button type="button" className="btn btn-secondary text-xs" onClick={() => notify("sms", "assignment")} disabled={busy || !exchange.drawn || !providers?.smsReady}>
                 <MessageSquare size={14} /> Text people who opted in
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary text-xs"
+                disabled={busy || !exchange.eventDate}
+                onClick={() => run(() => api(`/api/exchanges/${selectedId}/reminders`, { method: "POST", json: {} }).then((data) => {
+                  setDetail(data);
+                  setNotice(`${data.queued || 0} reminders queued. They send only if the person is still eligible.`);
+                }))}
+              >
+                Queue deadline reminders
               </button>
             </div>
             <p className="text-[11px] text-slate-400">

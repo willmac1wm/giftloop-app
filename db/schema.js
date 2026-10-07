@@ -1,4 +1,4 @@
-import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const exchanges = pgTable("exchanges", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -50,6 +50,7 @@ export const deliveries = pgTable("deliveries", {
   status: text("status").notNull(),
   detail: text("detail").notNull().default(""),
   kind: text("kind").notNull().default("note"),
+  providerMessageId: text("provider_message_id").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -94,5 +95,39 @@ export const notificationPrefs = pgTable("notification_prefs", {
   emailAssignments: boolean("email_assignments").notNull().default(true),
   emailReminders: boolean("email_reminders").notNull().default(true),
   smsOptIn: boolean("sms_opt_in").notNull().default(false),
+  smsStoppedAt: text("sms_stopped_at").notNull().default(""),
   phone: text("phone").notNull().default(""),
+});
+
+export const notificationJobs = pgTable("notification_jobs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  exchangeId: uuid("exchange_id").notNull().references(() => exchanges.id, { onDelete: "cascade" }),
+  memberId: uuid("member_id").notNull().references(() => members.id, { onDelete: "cascade" }),
+  channel: text("channel").notNull(),
+  kind: text("kind").notNull(),
+  runAt: timestamp("run_at", { withTimezone: true }).notNull(),
+  status: text("status").notNull().default("pending"),
+  attempts: integer("attempts").notNull().default(0),
+  detail: text("detail").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const tickets = pgTable("tickets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  requesterUserId: text("requester_user_id").notNull().default(""),
+  requesterEmail: text("requester_email").notNull().default(""),
+  subject: text("subject").notNull(),
+  body: text("body").notNull().default(""),
+  status: text("status").notNull().default("open"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const merchants = pgTable("merchants", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  domains: text("domains").notNull(),
+  affiliateParam: text("affiliate_param").notNull().default(""),
+  configKey: text("config_key").notNull().default(""),
+  enabled: boolean("enabled").notNull().default(true),
+  countries: text("countries").notNull().default(""),
 });

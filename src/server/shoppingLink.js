@@ -1,16 +1,22 @@
-import { applyAffiliateTag } from "../utils/affiliate.js";
-
 const BLOCKED_EXTENSIONS = new Set(["exe", "dmg", "apk", "bat", "cmd", "scr", "msi", "jar", "js", "ps1", "sh"]);
 
 const SHORTENERS = new Set(["amzn.to", "a.co", "bit.ly", "t.co", "tinyurl.com", "lnkd.in", "goo.gl"]);
 
-const RETAILERS = [
-  { id: "amazon", domains: ["amazon.com", "amazon.co.uk", "amazon.ca", "amazon.de", "amazon.fr", "amazon.it", "amazon.es", "amazon.co.jp", "amazon.com.au", "amazon.in", "amazon.com.mx"] },
-  { id: "walmart", domains: ["walmart.com"] },
-  { id: "target", domains: ["target.com"] },
-  { id: "basspro", domains: ["basspro.com"] },
-  { id: "cabelas", domains: ["cabelas.com"] },
-  { id: "bestbuy", domains: ["bestbuy.com"] },
+export const DEFAULT_MERCHANTS = [
+  {
+    id: "amazon",
+    name: "Amazon",
+    domains: ["amazon.com", "amazon.co.uk", "amazon.ca", "amazon.de", "amazon.fr", "amazon.it", "amazon.es", "amazon.co.jp", "amazon.com.au", "amazon.in", "amazon.com.mx"],
+    affiliateParam: "tag",
+    configKey: "amazonTag",
+    enabled: true,
+    countries: "US,UK,CA,DE,FR,IT,ES,JP,AU,IN,MX",
+  },
+  { id: "walmart", name: "Walmart", domains: ["walmart.com"], affiliateParam: "wmlspartner", configKey: "walmartPublisherId", enabled: true, countries: "US" },
+  { id: "target", name: "Target", domains: ["target.com"], affiliateParam: "afid", configKey: "targetPartnerId", enabled: true, countries: "US" },
+  { id: "basspro", name: "Bass Pro Shops", domains: ["basspro.com"], affiliateParam: "affCode", configKey: "bassProPartnerId", enabled: true, countries: "US" },
+  { id: "cabelas", name: "Cabela's", domains: ["cabelas.com"], affiliateParam: "affCode", configKey: "bassProPartnerId", enabled: true, countries: "US" },
+  { id: "bestbuy", name: "Best Buy", domains: ["bestbuy.com"], affiliateParam: "irclickid", configKey: "bestBuyPartnerId", enabled: true, countries: "US" },
 ];
 
 function hostMatches(host, domain) {
@@ -36,11 +42,17 @@ export function isBlockedHost(hostname) {
   return false;
 }
 
-function matchRetailer(host) {
-  return RETAILERS.find((retailer) => retailer.domains.some((domain) => hostMatches(host, domain)))?.id || "";
+function matchRetailer(host, merchants) {
+  return (merchants || DEFAULT_MERCHANTS).find((merchant) =>
+    String(merchant.domains || "")
+      .split(",")
+      .map((domain) => domain.trim().toLowerCase())
+      .filter(Boolean)
+      .some((domain) => hostMatches(host, domain)),
+  );
 }
 
-export function classifyProductUrl(raw) {
+export function classifyProductUrl(raw, merchants = DEFAULT_MERCHANTS) {
   const text = String(raw || "").trim();
   if (!text) return { ok: false, reason: "Enter a product link or leave the link blank." };
   let parsed;
@@ -61,6 +73,7 @@ export function classifyProductUrl(raw) {
   if (extension && BLOCKED_EXTENSIONS.has(extension)) {
     return { ok: false, reason: "That file cannot be saved as a gift link." };
   }
+  const merchant = matchRetailer(host, merchants);
   const originalUrl = parsed.toString();
   if (SHORTENERS.has(host)) {
     return {
@@ -75,13 +88,14 @@ export function classifyProductUrl(raw) {
   return {
     ok: true,
     shortened: false,
-    retailer: matchRetailer(host),
+    retailer: merchant?.id || "",
+    merchant,
     originalUrl,
     host,
   };
 }
 
-export function shoppingDestination(classification, config) {
+export function shoppingDestination(classification, config, merchants = DEFAULT_MERCHANTS) {
   if (!classification?.ok || classification.shortened || !classification.retailer) {
     return {
       ...classification,
@@ -89,7 +103,14 @@ export function shoppingDestination(classification, config) {
       affiliateApplied: false,
     };
   }
-  const shoppingUrl = applyAffiliateTag(classification.originalUrl, config);
+  const merchant = (merchants || DEFAULT_MERCHANTS).find((item) => item.id === classification.retailer) || classification.merchant;
+  const tag = merchant?.enabled && merchant.affiliateParam && merchant.configKey ? config?.[merchant.configKey] : "";
+  if (!tag) {
+    return { ...classification, shoppingUrl: classification.originalUrl, affiliateApplied: false };
+  }
+  const parsed = new URL(classification.originalUrl);
+  parsed.searchParams.set(merchant.affiliateParam, tag);
+  const shoppingUrl = parsed.toString();
   return {
     ...classification,
     shoppingUrl,
@@ -97,8 +118,64 @@ export function shoppingDestination(classification, config) {
   };
 }
 
-export function prepareShoppingLink(raw, config) {
-  const classified = classifyProductUrl(raw);
+export function prepareShoppingLink(raw, config, merchants = DEFAULT_MERCHANTS) {
+  const classified = classifyProductUrl(raw, merchants);
   if (!classified.ok) return classified;
-  return shoppingDestination(classified, config);
+  return shoppingDestination(classified, config, merchants);
+}
+
+export async function followRedirects(startUrl, { fetchImpl = globalThis.fetch, lookupImpl } = {}) {
+  let current = startUrl;
+  for (let hop = 0; hop < 4; hop += 1) {
+    let parsed;
+    try {
+      parsed = new URL(current);
+    } catch {
+      return { ok: false, reason: "That link is not a valid web address." };
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return { ok: false, reason: "Only web links can be saved." };
+    }
+    if (isBlockedHost(parsed.hostname)) return { ok: false, reason: "That address is not a public retailer." };
+    if (lookupImpl) {
+      try {
+        const records = await lookupImpl(parsed.hostname);
+        const list = Array.isArray(records) ? records : [records];
+        if (list.some((row) => isBlockedHost(row.address || row))) {
+          return { ok: false, reason: "That address is not a public retailer." };
+        }
+      } catch {
+        return { ok: true, unresolved: true };
+      }
+    }
+    if (hop > 0 && !SHORTENERS.has(parsed.hostname.toLowerCase())) {
+      return { ok: true, finalUrl: parsed.toString() };
+    }
+    let response;
+    try {
+      response = await fetchImpl(parsed.toString(), { method: "GET", redirect: "manual" });
+    } catch {
+      return { ok: true, unresolved: true };
+    }
+    const location = response.headers?.get?.("location") || response.headers?.location || "";
+    if (!location || response.status < 300 || response.status >= 400) return { ok: true, unresolved: true };
+    current = new URL(location, parsed).toString();
+  }
+  return { ok: false, reason: "That short link did not resolve to a retailer." };
+}
+
+export async function finalizeShoppingLink(raw, config, options = {}) {
+  const merchants = options.merchants || DEFAULT_MERCHANTS;
+  const first = classifyProductUrl(raw, merchants);
+  if (!first.ok) return first;
+  if (!first.shortened) return shoppingDestination(first, config, merchants);
+  const followed = await followRedirects(first.originalUrl, options);
+  if (!followed.ok) return followed;
+  if (followed.unresolved) {
+    return { ...first, shoppingUrl: first.originalUrl, affiliateApplied: false, unresolved: true };
+  }
+  const landed = classifyProductUrl(followed.finalUrl, merchants);
+  if (!landed.ok) return landed;
+  const ready = shoppingDestination(landed, config, merchants);
+  return { ...ready, shortened: true, originalUrl: first.originalUrl };
 }

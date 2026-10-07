@@ -7,15 +7,29 @@ import {
   exclusions,
   exchanges,
   members,
+  merchants,
+  notificationJobs,
   notificationPrefs,
   reservations,
+  tickets,
   wishItems,
   wishLists,
 } from "../../db/schema.js";
 import { AGE_BANDS, SHOP_FOR } from "../../src/data/giftProfile.js";
+import {
+  acceptDecision,
+  interpretDrawLock,
+  ownerWishItem,
+  recipientForMember,
+  staffRole,
+  supportLookupView,
+  withoutPairings,
+} from "../../src/server/access.js";
 import { assignmentNotice, invitationNotice, planDraw, wishLines } from "../../src/server/assignments.js";
-import { providerEnv, readProviders, sendEmail, sendSms } from "../../src/server/messages.js";
-import { prepareShoppingLink } from "../../src/server/shoppingLink.js";
+import { normalizeSmsTo, providerEnv, readProviders, sendEmail, sendSms } from "../../src/server/messages.js";
+import { deliveryDecision, reminderRunAt } from "../../src/server/notifyPolicy.js";
+import { DEFAULT_MERCHANTS, finalizeShoppingLink } from "../../src/server/shoppingLink.js";
+import { SMS_STOP_WORDS, validTwilioSignature } from "../../src/server/twilio.js";
 import { DEFAULT_AFFILIATE_CONFIG } from "../../src/utils/affiliate.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -92,7 +106,7 @@ async function exchangePayload(exchange) {
     .limit(40);
   const names = new Map(people.map((person) => [person.id, person.name]));
   const accepted = people.filter((person) => person.status === "accepted");
-  return {
+  const view = {
     exchange: {
       id: exchange.id,
       title: exchange.title,
@@ -126,6 +140,7 @@ async function exchangePayload(exchange) {
     })),
     providers: readProviders(providerEnv()),
   };
+  return withoutPairings(view);
 }
 
 async function handleSession() {
@@ -220,17 +235,35 @@ async function handleDeleteMember(exchange, memberId) {
   return json(await exchangePayload(exchange));
 }
 
+async function loadDrawInput(exchange) {
+  const people = await db.select().from(members).where(eq(members.exchangeId, exchange.id));
+  const rules = await db.select().from(exclusions).where(eq(exclusions.exchangeId, exchange.id));
+  return {
+    people,
+    exclusions: rules.map((rule) => ({ giverId: rule.giverMemberId, receiverId: rule.receiverMemberId })),
+  };
+}
+
+async function saveDraw(exchangeId, matches) {
+  await db.transaction(async (tx) => {
+    await tx.delete(assignments).where(eq(assignments.exchangeId, exchangeId));
+    await tx.insert(assignments).values(
+      matches.map((match) => ({
+        exchangeId,
+        giverMemberId: match.giver.id,
+        receiverMemberId: match.receiver.id,
+      })),
+    );
+    await tx.update(exchanges).set({ drawnAt: new Date(), status: "drawn" }).where(eq(exchanges.id, exchangeId));
+  });
+}
+
 async function handleDraw(exchange) {
   if (exchange.drawnAt) {
     return json({ ...(await exchangePayload(exchange)), alreadyDrawn: true });
   }
-  const people = await db.select().from(members).where(eq(members.exchangeId, exchange.id));
-  const rules = await db.select().from(exclusions).where(eq(exclusions.exchangeId, exchange.id));
-  const planned = planDraw({
-    alreadyDrawn: false,
-    people,
-    exclusions: rules.map((rule) => ({ giverId: rule.giverMemberId, receiverId: rule.receiverMemberId })),
-  });
+  const input = await loadDrawInput(exchange);
+  const planned = planDraw({ alreadyDrawn: false, ...input });
   if (!planned.success) {
     return json({ error: planned.error || "Could not draw names.", included: planned.included }, 400);
   }
@@ -239,23 +272,18 @@ async function handleDraw(exchange) {
     .set({ status: "drawing" })
     .where(and(eq(exchanges.id, exchange.id), isNull(exchanges.drawnAt), ne(exchanges.status, "drawing")))
     .returning();
-  if (!locked) {
-    const [fresh] = await db.select().from(exchanges).where(eq(exchanges.id, exchange.id)).limit(1);
-    if (fresh?.drawnAt) return json({ ...(await exchangePayload(fresh)), alreadyDrawn: true });
-    return json({ error: "A draw is already in progress." }, 409);
+  const claim = interpretDrawLock({ locked, fresh: locked ? null : (await db.select().from(exchanges).where(eq(exchanges.id, exchange.id)).limit(1))[0] });
+  if (!claim.proceed) {
+    if (claim.alreadyDrawn) {
+      const [fresh] = await db.select().from(exchanges).where(eq(exchanges.id, exchange.id)).limit(1);
+      return json({ ...(await exchangePayload(fresh)), alreadyDrawn: true });
+    }
+    return json({ error: claim.error }, claim.status || 409);
   }
   try {
-    await db.delete(assignments).where(eq(assignments.exchangeId, exchange.id));
-    await db.insert(assignments).values(
-      planned.matches.map((match) => ({
-        exchangeId: exchange.id,
-        giverMemberId: match.giver.id,
-        receiverMemberId: match.receiver.id,
-      })),
-    );
-    await db.update(exchanges).set({ drawnAt: new Date(), status: "drawn" }).where(eq(exchanges.id, exchange.id));
+    await saveDraw(exchange.id, planned.matches);
   } catch (error) {
-    await db.update(exchanges).set({ status: "accepting" }).where(eq(exchanges.id, exchange.id));
+    await db.update(exchanges).set({ status: "accepting" }).where(and(eq(exchanges.id, exchange.id), isNull(exchanges.drawnAt)));
     throw error;
   }
   const [updated] = await db.select().from(exchanges).where(eq(exchanges.id, exchange.id)).limit(1);
@@ -267,13 +295,28 @@ async function handleRedraw(exchange, body, organizer) {
   if (body.confirm !== "redraw") {
     return json({ error: "Confirm the redraw before assignments change." }, 400);
   }
-  await db.delete(assignments).where(eq(assignments.exchangeId, exchange.id));
-  await db.update(exchanges).set({ drawnAt: null, status: "accepting" }).where(eq(exchanges.id, exchange.id));
-  const [cleared] = await db.select().from(exchanges).where(eq(exchanges.id, exchange.id)).limit(1);
-  return handleDraw(cleared);
+  const input = await loadDrawInput(exchange);
+  const planned = planDraw({ alreadyDrawn: false, ...input });
+  if (!planned.success) {
+    return json({ error: planned.error || "Could not draw names.", included: planned.included }, 400);
+  }
+  const [locked] = await db
+    .update(exchanges)
+    .set({ status: "drawing" })
+    .where(and(eq(exchanges.id, exchange.id), ne(exchanges.status, "drawing")))
+    .returning();
+  if (!locked) return json({ error: "A draw is already in progress." }, 409);
+  try {
+    await saveDraw(exchange.id, planned.matches);
+  } catch (error) {
+    await db.update(exchanges).set({ status: exchange.drawnAt ? "drawn" : "accepting" }).where(eq(exchanges.id, exchange.id));
+    throw error;
+  }
+  const [updated] = await db.select().from(exchanges).where(eq(exchanges.id, exchange.id)).limit(1);
+  return json(await exchangePayload(updated));
 }
 
-async function recordDelivery(exchangeId, memberId, channel, status, detail, kind) {
+async function recordDelivery(exchangeId, memberId, channel, status, detail, kind, providerMessageId = "") {
   await db.insert(deliveries).values({
     exchangeId,
     memberId,
@@ -281,11 +324,41 @@ async function recordDelivery(exchangeId, memberId, channel, status, detail, kin
     status,
     detail: clip(detail, 300),
     kind,
+    providerMessageId: clip(providerMessageId, 80),
   });
 }
 
 function siteOrigin(req, context) {
   return Netlify.env.get("DEPLOY_PRIME_URL") || Netlify.env.get("URL") || context.site?.url || new URL(req.url).origin;
+}
+
+async function lookupHost(hostname) {
+  const { lookup } = await import("node:dns/promises");
+  return lookup(hostname, { all: true });
+}
+
+async function loadMerchants() {
+  const rows = await db.select().from(merchants);
+  if (!rows.length) return DEFAULT_MERCHANTS;
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    domains: row.domains,
+    affiliateParam: row.affiliateParam,
+    configKey: row.configKey,
+    enabled: row.enabled,
+    countries: row.countries,
+  }));
+}
+
+async function cancelSmsJobsForUser(userId) {
+  const seats = await db.select().from(members).where(eq(members.userId, userId));
+  const ids = seats.map((seat) => seat.id);
+  if (!ids.length) return;
+  await db
+    .update(notificationJobs)
+    .set({ status: "cancelled", detail: "Opted out of texts." })
+    .where(and(inArray(notificationJobs.memberId, ids), eq(notificationJobs.channel, "sms"), eq(notificationJobs.status, "pending")));
 }
 
 async function prefsFor(userId) {
@@ -315,37 +388,29 @@ async function handleNotify(exchange, body, req, context) {
   for (const person of people) {
     if (kind === "invite" && person.exchangeRole === "organizer") continue;
     const prefs = await prefsFor(person.userId);
-    if (channel === "sms" && !prefs?.smsOptIn) {
-      await recordDelivery(exchange.id, person.id, channel, "skipped", "This person has not opted in to texts.", kind);
-      results.push({ name: person.name, status: "skipped" });
-      continue;
-    }
-    if (channel === "email" && prefs && kind === "assignment" && prefs.emailAssignments === false) {
-      await recordDelivery(exchange.id, person.id, channel, "skipped", "Assignment email is turned off.", kind);
-      results.push({ name: person.name, status: "skipped" });
-      continue;
-    }
-    if (channel === "email" && prefs && kind === "invite" && prefs.emailInvites === false) {
-      await recordDelivery(exchange.id, person.id, channel, "skipped", "Invitation email is turned off.", kind);
-      results.push({ name: person.name, status: "skipped" });
-      continue;
-    }
-    const address = channel === "email" ? person.email : prefs?.phone || "";
-    if (!address) {
-      await recordDelivery(exchange.id, person.id, channel, "skipped", "No address on file.", kind);
-      results.push({ name: person.name, status: "skipped" });
-      continue;
-    }
     const prior = await db
       .select()
       .from(deliveries)
-      .where(and(eq(deliveries.memberId, person.id), eq(deliveries.channel, channel), eq(deliveries.kind, kind), eq(deliveries.status, "sent")));
-    if (prior.length >= 3) {
-      await recordDelivery(exchange.id, person.id, channel, "skipped", "Send limit reached.", kind);
-      results.push({ name: person.name, status: "skipped" });
-      continue;
-    }
-    if (prior.length > 0 && body.resend !== true) {
+      .where(and(
+        eq(deliveries.memberId, person.id),
+        eq(deliveries.channel, channel),
+        eq(deliveries.kind, kind),
+        inArray(deliveries.status, ["sent", "accepted", "delivered"]),
+      ));
+    const decision = deliveryDecision({
+      channel,
+      kind,
+      prefs,
+      sentCount: prior.length,
+      resend: body.resend === true,
+      memberStatus: person.status,
+    });
+    const address = channel === "email" ? person.email : prefs?.phone || "";
+    if (!decision.send || !address) {
+      const reason = !address && decision.send ? "No address on file." : decision.reason;
+      if (reason && reason !== "Already sent.") {
+        await recordDelivery(exchange.id, person.id, channel, "skipped", reason, kind);
+      }
       results.push({ name: person.name, status: "skipped" });
       continue;
     }
@@ -356,18 +421,16 @@ async function handleNotify(exchange, body, req, context) {
       ? invitationNotice({ title: exchange.title, url })
       : assignmentNotice({ title: exchange.title, url });
     try {
-      if (channel === "email") {
-        await sendEmail({
+      const providerMessageId = channel === "email"
+        ? await sendEmail({
           to: person.email,
-          subject: kind === "invite" ? `Invitation to ${exchange.title}` : "Your recipient is ready",
+          subject: kind === "invite" ? `Invitation to ${exchange.title}` : kind === "reminder" ? `Reminder for ${exchange.title}` : "Your recipient is ready",
           text,
           env,
-        });
-      } else {
-        await sendSms({ to: address, text, env });
-      }
-      await recordDelivery(exchange.id, person.id, channel, "sent", "Sent.", kind);
-      results.push({ name: person.name, status: "sent" });
+        })
+        : await sendSms({ to: address, text, env });
+      await recordDelivery(exchange.id, person.id, channel, "accepted", "Accepted by the provider. Delivery is not confirmed yet.", kind, providerMessageId);
+      results.push({ name: person.name, status: "accepted" });
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Send failed.";
       await recordDelivery(exchange.id, person.id, channel, "failed", detail, kind);
@@ -375,6 +438,7 @@ async function handleNotify(exchange, body, req, context) {
     }
   }
 
+  if (body.memberId) return json({ results });
   const [updated] = await db.select().from(exchanges).where(eq(exchanges.id, exchange.id)).limit(1);
   const payload = await exchangePayload(updated);
   return json({ ...payload, results });
@@ -486,17 +550,17 @@ async function handleInviteDecline(token) {
     return json({ error: "This invitation was already accepted." }, 409);
   }
   await db.update(members).set({ status: "declined" }).where(eq(members.id, member.id));
+  await db
+    .update(notificationJobs)
+    .set({ status: "cancelled", detail: "This person declined." })
+    .where(and(eq(notificationJobs.memberId, member.id), eq(notificationJobs.status, "pending")));
   return json({ status: "declined" });
 }
 
 async function handleInviteAccept(user, token) {
   const [member] = await db.select().from(members).where(eq(members.inviteToken, token)).limit(1);
-  if (!member) return json({ error: "That invitation was not found." }, 404);
-  const invitedEmail = (member.email || "").toLowerCase();
-  const accountEmail = (user.email || "").toLowerCase();
-  if (invitedEmail && accountEmail && invitedEmail !== accountEmail) {
-    return json({ error: "Sign in with the email address on the invitation." }, 403);
-  }
+  const decision = acceptDecision({ member, user });
+  if (!decision.ok) return json({ error: decision.error }, decision.status);
   await db.update(members).set({ status: "accepted", userId: user.id }).where(eq(members.id, member.id));
   return json({ status: "accepted", exchangeId: member.exchangeId });
 }
@@ -509,15 +573,21 @@ async function handleAssignment(user, exchangeId) {
     .where(and(eq(members.exchangeId, exchangeId), eq(members.userId, user.id)))
     .limit(1);
   if (!member) return json({ error: "You are not on this exchange." }, 404);
-  const [exchange] = await db.select().from(exchanges).where(eq(exchanges.id, exchangeId)).limit(1);
-  if (!exchange?.drawnAt) return json({ ready: false, exchangeTitle: exchange?.title || "Secret Santa" });
-  const [pair] = await db
+  const people = await db.select().from(members).where(eq(members.exchangeId, exchangeId));
+  const pairs = await db
     .select()
     .from(assignments)
-    .where(and(eq(assignments.exchangeId, exchangeId), eq(assignments.giverMemberId, member.id)))
-    .limit(1);
-  if (!pair) return json({ ready: false, exchangeTitle: exchange.title });
-  const [receiver] = await db.select().from(members).where(eq(members.id, pair.receiverMemberId)).limit(1);
+    .where(and(eq(assignments.exchangeId, exchangeId), eq(assignments.giverMemberId, member.id)));
+  const [exchange] = await db.select().from(exchanges).where(eq(exchanges.id, exchangeId)).limit(1);
+  const visible = recipientForMember({
+    userId: user.id,
+    members: people,
+    pairs,
+    drawn: Boolean(exchange?.drawnAt),
+  });
+  if (visible.status) return json({ error: visible.error }, visible.status);
+  if (!visible.ready) return json({ ready: false, exchangeTitle: exchange?.title || "Secret Santa" });
+  const receiver = people.find((row) => row.id === visible.receiverId);
   let items = [];
   if (receiver?.wishListId) {
     const rows = await db.select().from(wishItems).where(eq(wishItems.listId, receiver.wishListId));
@@ -554,17 +624,7 @@ async function handleWishLists(user) {
     result.push({
       id: list.id,
       title: list.title,
-      items: items.map((item) => ({
-        id: item.id,
-        title: item.title,
-        notes: item.notes,
-        size: item.size,
-        color: item.color,
-        priority: item.priority,
-        originalUrl: item.originalUrl,
-        shoppingUrl: item.shoppingUrl,
-        retailer: item.retailer,
-      })),
+      items: items.map(ownerWishItem),
     });
   }
   return json({ lists: result });
@@ -586,7 +646,10 @@ async function handleAddWishItem(user, listId, body) {
   const original = clip(body.originalUrl, 2000);
   let prepared = { originalUrl: "", shoppingUrl: "", retailer: "", affiliateApplied: false };
   if (original) {
-    prepared = prepareShoppingLink(original, DEFAULT_AFFILIATE_CONFIG);
+    prepared = await finalizeShoppingLink(original, DEFAULT_AFFILIATE_CONFIG, {
+      merchants: await loadMerchants(),
+      lookupImpl: lookupHost,
+    });
     if (!prepared.ok) return json({ error: prepared.reason }, 400);
   }
   await db.insert(wishItems).values({
@@ -621,7 +684,10 @@ async function handleUpdateWishItem(user, itemId, body) {
     if (!original) {
       prepared = { originalUrl: "", shoppingUrl: "", retailer: "" };
     } else {
-      prepared = prepareShoppingLink(original, DEFAULT_AFFILIATE_CONFIG);
+      prepared = await finalizeShoppingLink(original, DEFAULT_AFFILIATE_CONFIG, {
+        merchants: await loadMerchants(),
+        lookupImpl: lookupHost,
+      });
       if (!prepared.ok) return json({ error: prepared.reason }, 400);
     }
   }
@@ -705,6 +771,7 @@ async function handleSettings(user, method, body) {
     emailAssignments: body.emailAssignments !== false,
     emailReminders: body.emailReminders !== false,
     smsOptIn: body.smsOptIn === true,
+    smsStoppedAt: body.smsOptIn === true ? "" : new Date().toISOString(),
     phone: clip(body.phone, 40),
   };
   if (next.smsOptIn && !next.phone) return json({ error: "Add the phone number that should receive texts." }, 400);
@@ -713,7 +780,142 @@ async function handleSettings(user, method, body) {
   } else {
     await db.insert(notificationPrefs).values(next);
   }
-  return json(next);
+  if (!next.smsOptIn) await cancelSmsJobsForUser(user.id);
+  return json({ ...next, smsStoppedAt: undefined, smsOptIn: next.smsOptIn });
+}
+
+async function handleQueueReminders(exchange) {
+  const when = reminderRunAt(exchange.eventDate);
+  if (!when) return json({ error: "Add an exchange date before queueing reminders." }, 400);
+  const people = await db.select().from(members).where(eq(members.exchangeId, exchange.id));
+  let queued = 0;
+  for (const person of people) {
+    if (person.status !== "accepted") continue;
+    const pending = await db
+      .select()
+      .from(notificationJobs)
+      .where(and(eq(notificationJobs.memberId, person.id), eq(notificationJobs.kind, "reminder"), eq(notificationJobs.status, "pending")));
+    if (pending.length) continue;
+    const prefs = await prefsFor(person.userId);
+    for (const channel of ["email", "sms"]) {
+      const decision = deliveryDecision({ channel, kind: "reminder", prefs, memberStatus: person.status });
+      if (!decision.send) continue;
+      if (channel === "email" && !person.email) continue;
+      await db.insert(notificationJobs).values({
+        exchangeId: exchange.id,
+        memberId: person.id,
+        channel,
+        kind: "reminder",
+        runAt: when,
+      });
+      queued += 1;
+    }
+  }
+  return json({ ...(await exchangePayload(exchange)), queued });
+}
+
+async function handleCreateTicket(user, body) {
+  const subject = clip(body.subject, 120);
+  const message = clip(body.body, 4000);
+  if (!subject || !message) return json({ error: "Add a subject and a message." }, 400);
+  await db.insert(tickets).values({
+    requesterUserId: user.id,
+    requesterEmail: user.email || "",
+    subject,
+    body: message,
+    status: "open",
+  });
+  return json({ created: true });
+}
+
+async function handleSupportTickets(user) {
+  if (!staffRole(user)) return json({ error: "That page was not found." }, 404);
+  const rows = await db.select().from(tickets).orderBy(desc(tickets.createdAt)).limit(100);
+  return json({
+    tickets: rows.map((row) => ({
+      id: row.id,
+      requesterEmail: row.requesterEmail,
+      subject: row.subject,
+      body: row.body,
+      status: row.status,
+      createdAt: row.createdAt,
+    })),
+  });
+}
+
+async function handleSupportLookup(user, email) {
+  if (!staffRole(user)) return json({ error: "That page was not found." }, 404);
+  const normalized = clip(email, 160).toLowerCase();
+  if (!normalized) return json({ error: "Enter an email address." }, 400);
+  const people = await db.select().from(members).where(sql`lower(${members.email}) = ${normalized}`);
+  const seats = [];
+  for (const person of people) {
+    const [exchange] = await db.select().from(exchanges).where(eq(exchanges.id, person.exchangeId)).limit(1);
+    const failed = await db.select().from(deliveries).where(and(eq(deliveries.memberId, person.id), eq(deliveries.status, "failed")));
+    seats.push({
+      exchangeTitle: exchange?.title || "Secret Santa",
+      status: person.status,
+      hasWishes: wishLines(person.wishes).length > 0 || Boolean(person.wishListId),
+      failures: failed.map((row) => ({ channel: row.channel, kind: row.kind, detail: row.detail, createdAt: row.createdAt })),
+    });
+  }
+  return json(supportLookupView({ email: normalized, seats }));
+}
+
+async function handleMerchantAdmin(user, method, body) {
+  if (staffRole(user) !== "admin") return json({ error: "That page was not found." }, 404);
+  if (method === "GET") return json({ merchants: await loadMerchants() });
+  const id = clip(body.id, 40).toLowerCase();
+  if (!id || !/^[a-z0-9-]+$/.test(id)) return json({ error: "Use a short merchant id such as amazon." }, 400);
+  const row = {
+    id,
+    name: clip(body.name, 80) || id,
+    domains: clip(body.domains, 400),
+    affiliateParam: clip(body.affiliateParam, 40),
+    configKey: clip(body.configKey, 40),
+    enabled: body.enabled !== false,
+    countries: clip(body.countries, 80),
+  };
+  const [existing] = await db.select().from(merchants).where(eq(merchants.id, id)).limit(1);
+  if (existing) await db.update(merchants).set(row).where(eq(merchants.id, id));
+  else await db.insert(merchants).values(row);
+  return json({ merchants: await loadMerchants() });
+}
+
+async function handleTwilio(req) {
+  const text = await req.text();
+  const params = Object.fromEntries(new URLSearchParams(text));
+  const env = providerEnv();
+  const signature = req.headers.get("x-twilio-signature") || "";
+  if (!validTwilioSignature({ url: req.url, params, token: env.TWILIO_AUTH_TOKEN, signature })) {
+    return json({ error: "That request was not accepted." }, 403);
+  }
+  const inbound = String(params.Body || "").trim().toUpperCase();
+  if (SMS_STOP_WORDS.has(inbound) && params.From) {
+    const from = normalizeSmsTo(params.From);
+    const rows = await db.select().from(notificationPrefs);
+    for (const row of rows) {
+      if (normalizeSmsTo(row.phone) !== from) continue;
+      await db
+        .update(notificationPrefs)
+        .set({ smsOptIn: false, smsStoppedAt: new Date().toISOString() })
+        .where(eq(notificationPrefs.userId, row.userId));
+      await cancelSmsJobsForUser(row.userId);
+    }
+    return new Response("<Response></Response>", { headers: { "Content-Type": "text/xml" } });
+  }
+  const sid = params.MessageSid || "";
+  const messageStatus = params.MessageStatus || "";
+  if (sid && (messageStatus === "delivered" || messageStatus === "failed" || messageStatus === "undelivered")) {
+    await db
+      .update(deliveries)
+      .set({
+        status: messageStatus === "delivered" ? "delivered" : "failed",
+        detail: `Twilio reported ${messageStatus}.`,
+      })
+      .where(eq(deliveries.providerMessageId, sid));
+  }
+  return new Response("ok");
 }
 
 async function handleAddExclusion(exchange, body) {
@@ -728,10 +930,11 @@ async function handleAddExclusion(exchange, body) {
 
 export default async function handler(req, context) {
   try {
-    const body = await readJson(req);
-    if (body === null) return json({ error: "That request was not valid JSON." }, 400);
     const url = new URL(req.url);
     const parts = url.pathname.split("/").filter(Boolean);
+    if (parts[1] === "sms" && parts[2] === "twilio" && req.method === "POST") return handleTwilio(req);
+    const body = await readJson(req);
+    if (body === null) return json({ error: "That request was not valid JSON." }, 400);
 
     if (req.method === "GET" && parts.length === 2 && parts[1] === "session") return handleSession();
     if (parts[1] === "invites" && parts[2] && req.method === "GET") return handleInviteGet(parts[2]);
@@ -746,6 +949,24 @@ export default async function handler(req, context) {
     }
     if (parts[1] === "assignment" && req.method === "GET") {
       return handleAssignment(user, url.searchParams.get("exchange") || "");
+    }
+    if (parts[1] === "tickets" && req.method === "POST") return handleCreateTicket(user, body);
+    if (parts[1] === "support" && parts[2] === "tickets" && req.method === "GET") return handleSupportTickets(user);
+    if (parts[1] === "support" && parts[2] === "lookup" && req.method === "GET") {
+      return handleSupportLookup(user, url.searchParams.get("email") || "");
+    }
+    if (parts[1] === "support" && parts[2] === "resend" && req.method === "POST") {
+      if (!staffRole(user)) return json({ error: "That page was not found." }, 404);
+      if (!UUID.test(String(body.exchangeId || "")) || !UUID.test(String(body.memberId || ""))) {
+        return json({ error: "Choose a person." }, 400);
+      }
+      const [exchange] = await db.select().from(exchanges).where(eq(exchanges.id, body.exchangeId)).limit(1);
+      if (!exchange) return json({ error: "That exchange was not found." }, 404);
+      return handleNotify(exchange, { ...body, resend: true }, req, context);
+    }
+    if (parts[1] === "admin" && parts[2] === "merchants") {
+      if (req.method === "GET" || req.method === "POST") return handleMerchantAdmin(user, req.method, body);
+      return json({ error: "That action is not available." }, 405);
     }
     if (parts[1] === "settings") {
       if (req.method === "GET" || req.method === "POST") return handleSettings(user, req.method, body);
@@ -793,6 +1014,7 @@ export default async function handler(req, context) {
       if (parts[3] === "draw" && req.method === "POST") return handleDraw(exchange);
       if (parts[3] === "redraw" && req.method === "POST") return handleRedraw(exchange, body, organizer);
       if (parts[3] === "notify" && req.method === "POST") return handleNotify(exchange, body, req, context);
+      if (parts[3] === "reminders" && req.method === "POST") return handleQueueReminders(exchange);
       if (parts[3] === "exclusions" && req.method === "POST") return handleAddExclusion(exchange, body);
     }
 
@@ -825,5 +1047,12 @@ export const config = {
     "/api/wish-lists/:id/items",
     "/api/wish-items/:id/reserve",
     "/api/wish-items/:id",
+    "/api/exchanges/:id/reminders",
+    "/api/tickets",
+    "/api/support/tickets",
+    "/api/support/lookup",
+    "/api/support/resend",
+    "/api/admin/merchants",
+    "/api/sms/twilio",
   ],
 };

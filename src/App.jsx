@@ -9,6 +9,11 @@ import AdminScreen from './components/AdminScreen';
 import WishListScreen from './components/WishListScreen';
 import InviteScreen from './components/InviteScreen';
 import AssignmentScreen from './components/AssignmentScreen';
+import SupportScreen from './components/SupportScreen';
+import MerchantScreen from './components/MerchantScreen';
+import WhiteElephantTab from './components/WhiteElephantTab';
+import { initialWhiteElephantEvent } from './data/mockData';
+import { clearPrivateRevealNotes } from './account/privacy';
 import {
   ExchangeScreen,
   EXCHANGE_STORAGE_KEY,
@@ -64,6 +69,14 @@ export default function App() {
   const [previewPayload, setPreviewPayload] = useState(null);
   const [inviteCode, setInviteCode] = useState(() => entryFromLocation().inviteCode);
   const [assignmentExchangeId, setAssignmentExchangeId] = useState(() => entryFromLocation().assignmentExchangeId);
+  const [whiteElephant, setWhiteElephant] = useState(() => {
+    try {
+      const saved = localStorage.getItem('giftloop_whiteelephant_v2');
+      return saved ? JSON.parse(saved) : structuredClone(initialWhiteElephantEvent);
+    } catch {
+      return structuredClone(initialWhiteElephantEvent);
+    }
+  });
 
   useEffect(() => {
     let unsubscribe = () => {};
@@ -117,6 +130,14 @@ export default function App() {
       console.error(e);
     }
   }, [exchange]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('giftloop_whiteelephant_v2', JSON.stringify(whiteElephant));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [whiteElephant]);
 
   const handleResetDemoData = () => {
     if (window.confirm('Reset this Secret Santa to the sample group?')) {
@@ -200,6 +221,9 @@ export default function App() {
         onOpenAdmin={() => setArea('admin')}
         onOpenWishlist={() => setArea('wishlist')}
         onOpenExchange={() => setArea('exchange')}
+        onOpenWhiteElephant={() => setArea('white-elephant')}
+        onOpenSupport={() => setArea('support')}
+        onOpenMerchants={() => setArea('merchants')}
       />
 
       <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 z-10">
@@ -243,7 +267,9 @@ export default function App() {
               leaveAccount();
             }}
             onSignedOut={() => {
+              clearPrivateRevealNotes();
               setUser(null);
+              setAssignmentExchangeId('');
               setArea('account');
             }}
             onBack={leaveAccount}
@@ -265,6 +291,29 @@ export default function App() {
             user={user}
             onNeedAccount={() => {
               setAfterAccount('wishlist');
+              setArea('account');
+            }}
+          />
+        )}
+        {area === 'white-elephant' && (
+          <WhiteElephantTab event={whiteElephant} onUpdateEvent={setWhiteElephant} />
+        )}
+        {area === 'support' && (
+          <SupportScreen
+            key={user?.id || 'signed-out'}
+            user={user}
+            onNeedAccount={() => {
+              setAfterAccount('support');
+              setArea('account');
+            }}
+          />
+        )}
+        {area === 'merchants' && (
+          <MerchantScreen
+            key={user?.id || 'signed-out'}
+            user={user}
+            onNeedAccount={() => {
+              setAfterAccount('merchants');
               setArea('account');
             }}
           />

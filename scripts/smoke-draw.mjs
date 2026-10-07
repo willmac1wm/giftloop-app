@@ -28,7 +28,18 @@ import { ideasWithinBudget, shopQuery } from '../src/utils/shop.js';
 import { filterGifts } from '../src/utils/giftFinder.js';
 import { normalizeSmsTo, readProviders } from '../src/server/messages.js';
 import { assignmentNotice, drawMembers, invitationNotice, planDraw, revealUrl } from '../src/server/assignments.js';
-import { prepareShoppingLink } from '../src/server/shoppingLink.js';
+import { finalizeShoppingLink, prepareShoppingLink } from '../src/server/shoppingLink.js';
+import {
+  acceptDecision,
+  interpretDrawLock,
+  memberOnlyRoles,
+  ownerWishItem,
+  recipientForMember,
+  supportLookupView,
+  withoutPairings,
+} from '../src/server/access.js';
+import { deliveryDecision, reminderRunAt } from '../src/server/notifyPolicy.js';
+import { twilioSignature, validTwilioSignature } from '../src/server/twilio.js';
 
 function assert(condition, message) {
   if (!condition) {
@@ -290,6 +301,74 @@ const local = prepareShoppingLink('http://127.0.0.1/admin', DEFAULT_AFFILIATE_CO
 assert(!local.ok, local.reason);
 const shortLink = prepareShoppingLink('https://amzn.to/abc', DEFAULT_AFFILIATE_CONFIG);
 assert(shortLink.ok && shortLink.shortened && !shortLink.affiliateApplied && shortLink.shoppingUrl.includes('amzn.to'), shortLink.shoppingUrl);
+const regional = prepareShoppingLink('https://www.amazon.co.uk/dp/B001?th=1&psc=1', DEFAULT_AFFILIATE_CONFIG);
+assert(regional.ok && regional.retailer === 'amazon' && regional.shoppingUrl.includes('tag=giftloop-20') && regional.shoppingUrl.includes('th=1') && regional.shoppingUrl.includes('psc=1'), regional.shoppingUrl);
+const lookalike = prepareShoppingLink('https://amazon.com.evil.com/dp/B001?th=1', DEFAULT_AFFILIATE_CONFIG);
+assert(lookalike.ok && lookalike.retailer === '' && !lookalike.shoppingUrl.includes('tag='), lookalike.shoppingUrl);
+const nested = prepareShoppingLink('https://notamazon.com/dp/B001', DEFAULT_AFFILIATE_CONFIG);
+assert(nested.ok && nested.retailer === '' && nested.shoppingUrl === 'https://notamazon.com/dp/B001', nested.shoppingUrl);
+const canada = prepareShoppingLink('https://www.walmart.ca/ip/socks/123', DEFAULT_AFFILIATE_CONFIG);
+assert(canada.ok && canada.retailer === '' && !canada.affiliateApplied, canada.shoppingUrl);
+const disabled = prepareShoppingLink('https://www.amazon.com/dp/B001?th=1', DEFAULT_AFFILIATE_CONFIG, [
+  { id: 'amazon', domains: ['amazon.com'], affiliateParam: 'tag', configKey: 'amazonTag', enabled: false },
+]);
+assert(disabled.ok && disabled.retailer === 'amazon' && !disabled.affiliateApplied && disabled.shoppingUrl.includes('th=1') && !disabled.shoppingUrl.includes('tag='), disabled.shoppingUrl);
+const resolved = await finalizeShoppingLink('https://amzn.to/abc', DEFAULT_AFFILIATE_CONFIG, {
+  lookupImpl: async () => [{ address: '1.2.3.4' }],
+  fetchImpl: async () => ({ status: 302, headers: { get: () => 'https://www.amazon.com/dp/B001?th=1&psc=1' } }),
+});
+assert(resolved.ok && resolved.originalUrl.includes('amzn.to') && resolved.shoppingUrl.includes('/dp/B001') && resolved.shoppingUrl.includes('th=1') && resolved.shoppingUrl.includes('tag=giftloop-20'), resolved.shoppingUrl);
+const privateHop = await finalizeShoppingLink('https://bit.ly/gift', DEFAULT_AFFILIATE_CONFIG, {
+  lookupImpl: async () => [{ address: '1.2.3.4' }],
+  fetchImpl: async () => ({ status: 302, headers: { get: () => 'http://127.0.0.1/secret' } }),
+});
+assert(!privateHop.ok, privateHop.reason);
+const misleadingHop = await finalizeShoppingLink('https://tinyurl.com/gift', DEFAULT_AFFILIATE_CONFIG, {
+  lookupImpl: async () => [{ address: '1.2.3.4' }],
+  fetchImpl: async () => ({ status: 302, headers: { get: () => 'https://amazon.com.evil.com/dp/B001?th=1' } }),
+});
+assert(misleadingHop.ok && misleadingHop.retailer === '' && !misleadingHop.affiliateApplied, misleadingHop.shoppingUrl);
+
+const stolen = acceptDecision({ member: { email: 'ada@example.com', userId: '' }, user: { id: 'b', email: 'bea@example.com' } });
+assert(!stolen.ok && stolen.status === 403, stolen.error);
+const claimed = acceptDecision({ member: { email: 'ada@example.com', userId: 'a' }, user: { id: 'b', email: 'ada@example.com' } });
+assert(!claimed.ok && claimed.status === 409, claimed.error);
+const samePerson = acceptDecision({ member: { email: 'ada@example.com', userId: '' }, user: { id: 'a', email: 'ada@example.com' } });
+assert(samePerson.ok, 'the invited email can accept');
+const busyDraw = interpretDrawLock({ locked: null, fresh: { drawnAt: null, status: 'drawing' } });
+assert(!busyDraw.proceed && busyDraw.status === 409, 'a second draw waits');
+const finishedDraw = interpretDrawLock({ locked: null, fresh: { drawnAt: 'now' } });
+assert(finishedDraw.alreadyDrawn, 'a finished draw is not replaced by a duplicate request');
+const members = [
+  { id: 'a', userId: 'user-a', name: 'Ada' },
+  { id: 'b', userId: 'user-b', name: 'Bea' },
+];
+const pairs = [
+  { giverMemberId: 'a', receiverMemberId: 'b' },
+  { giverMemberId: 'b', receiverMemberId: 'a' },
+];
+const ada = recipientForMember({ userId: 'user-a', members, pairs, drawn: true });
+assert(ada.ready && ada.recipientName === 'Bea' && ada.receiverId === 'b', JSON.stringify(ada));
+const stranger = recipientForMember({ userId: 'user-c', members, pairs, drawn: true });
+assert(stranger.status === 404, 'another account cannot read the exchange');
+const hidden = withoutPairings({ exchange: { id: '1' }, assignments: pairs, recipientName: 'Bea' });
+assert(!hidden.assignments && !hidden.recipientName && hidden.exchange.id === '1', 'organizer payload drops pairings');
+const ownerView = ownerWishItem({ id: 'item', title: 'Socks', notes: '', size: 'M', color: 'blue', priority: '1', originalUrl: 'https://shop.example/socks', shoppingUrl: 'https://shop.example/socks', retailer: '', reserved: true, reservedBy: 'Bea' });
+assert(!('reserved' in ownerView) && !('reservedBy' in ownerView), 'the owner view has no reservation');
+const supportView = supportLookupView({
+  email: 'ada@example.com',
+  seats: [{ exchangeTitle: 'Family', status: 'accepted', hasWishes: true, recipientName: 'Bea', failures: [{ channel: 'sms', detail: 'opted out' }] }],
+});
+assert(!JSON.stringify(supportView).includes('Bea') && supportView.failures.length === 1, JSON.stringify(supportView));
+assert(JSON.stringify(memberOnlyRoles(['admin', 'support', 'member'])) === '["member"]', 'signup cannot grant staff roles');
+const optedOut = deliveryDecision({ channel: 'sms', kind: 'reminder', prefs: { smsOptIn: false, smsStoppedAt: '2026-10-07', phone: '+15550100101' }, memberStatus: 'accepted' });
+assert(!optedOut.send, optedOut.reason);
+const stillIn = deliveryDecision({ channel: 'sms', kind: 'reminder', prefs: { smsOptIn: true, smsStoppedAt: '', phone: '+15550100101' }, memberStatus: 'declined' });
+assert(!stillIn.send, 'a declined person is not reminded');
+assert(reminderRunAt('2026-12-25')?.toISOString() === '2026-12-24T15:00:00.000Z', 'reminders queue the day before');
+const signature = twilioSignature('https://giftloop.test/api/sms/twilio', { Body: 'STOP', From: '+15550100101' }, 'token');
+assert(validTwilioSignature({ url: 'https://giftloop.test/api/sms/twilio', params: { From: '+15550100101', Body: 'STOP' }, token: 'token', signature }), 'twilio signature matches');
+assert(!validTwilioSignature({ url: 'https://giftloop.test/api/sms/twilio', params: { Body: 'STOP' }, token: 'token', signature: 'nope' }), 'a bad twilio signature is rejected');
 
 console.log('smoke ok');
 console.log('christmas presets:', christmas.join(', '));

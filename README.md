@@ -26,7 +26,7 @@ These files exist. They do not finish the job in local Vite, because Netlify Ide
 - **Invitations** use `?view=invite&code=`. That page can accept or decline membership. It does not contain an assignment.
 - **Account assignments** use `?view=assignment&exchange=`. The page asks the matching signed-in member for their recipient. The link itself does not include the name. Older guest links that already contain a name stay readable by anyone who has them.
 - **Wish lists** can be saved on the member account, shared with an exchange, and reserved by the giver. The owner’s list does not show who reserved an item. Opening a shop link does not mark it purchased.
-- **Email and text** still need Resend and Twilio environment variables. Assignment notices say the recipient is ready and link back to the sign-in page. Texts go only to someone who opted in. Each person can be sent the same notice up to three times. There is no reminder queue that survives a failed deploy, no STOP webhook, and no quiet hours.
+- **Email and text** still need Resend and Twilio environment variables. A provider accepting a message is stored as accepted, not delivered. Twilio status updates can mark it delivered or failed. Texts go only to someone who opted in, and STOP cancels later texts. Reminders are rows in the database and a scheduled function sends due rows. Quiet hours are not built. This has not been tried with live provider credentials.
 - **Shopping links** pasted onto a wish are checked before they are stored: web links only, known retailer domains, short links left unresolved, and private network addresses rejected. Approved retailers get the default affiliate tag. Other stores keep the ordinary link. There is no separate administrator screen for merchant rules yet.
 - Database tables cover exchanges, members, assignments, deliveries, exclusions, wish lists, wish items, reservations, and notification preferences (`db/schema.js`). Migrations are `netlify/database/migrations/20261007111631_accounts` and `netlify/database/migrations/20261007115544_shared_exchange`. Netlify applies them on deploy. `npm run db:migrate` is only for a local Netlify database.
 
@@ -34,7 +34,7 @@ No concrete limit in this app requires replacing Netlify Database, Netlify Ident
 
 ## White Elephant
 
-`main` still has the White Elephant game (`src/components/WhiteElephantTab.jsx` on `origin/main`). This branch does not mount it. The files were removed in earlier Secret Santa work, not by this README. This change does not delete White Elephant.
+White Elephant is on this branch again (`src/components/WhiteElephantTab.jsx`) and opens from the header. It stays on this device, like the no-account quick draw. Merging the earlier Secret Santa commits by themselves would have deleted that file; this branch puts it back.
 
 ## Roadmap
 

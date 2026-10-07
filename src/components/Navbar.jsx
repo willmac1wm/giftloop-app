@@ -16,6 +16,9 @@ export default function Navbar({
   onOpenAdmin,
   onOpenWishlist,
   onOpenExchange,
+  onOpenWhiteElephant,
+  onOpenSupport,
+  onOpenMerchants,
 }) {
   const toggleSound = () => {
     const next = !soundEnabled;
@@ -86,6 +89,18 @@ export default function Navbar({
           <button
             onClick={() => {
               sound.playClick();
+              onOpenWhiteElephant && onOpenWhiteElephant();
+            }}
+            className={`btn btn-secondary text-xs py-2 px-2.5 ${area === 'white-elephant' ? 'text-white' : ''}`}
+            title="White Elephant on this device"
+          >
+            <Gift size={13} />
+            <span className="hidden lg:inline">White Elephant</span>
+          </button>
+
+          <button
+            onClick={() => {
+              sound.playClick();
               onOpenAdmin();
             }}
             className={`btn btn-secondary text-xs py-2 px-2.5 ${area === 'admin' ? 'text-amber-300' : ''}`}
@@ -117,6 +132,28 @@ export default function Navbar({
           >
             <KeyRound size={13} />
             <span className="hidden lg:inline">{user?.email ? 'Account' : 'Sign in'}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              sound.playClick();
+              onOpenSupport && onOpenSupport();
+            }}
+            className={`btn btn-secondary text-xs py-2 px-2.5 ${area === 'support' ? 'text-white' : ''}`}
+            title="Support tools. Assignments stay hidden."
+          >
+            <span className="hidden lg:inline">Support</span>
+          </button>
+
+          <button
+            onClick={() => {
+              sound.playClick();
+              onOpenMerchants && onOpenMerchants();
+            }}
+            className={`btn btn-secondary text-xs py-2 px-2.5 ${area === 'merchants' ? 'text-white' : ''}`}
+            title="Merchant settings for administrators"
+          >
+            <span className="hidden lg:inline">Merchants</span>
           </button>
 
           <button
