@@ -126,6 +126,15 @@ async function loadManagedExchange(id, user) {
   return { exchange, organizer: false };
 }
 
+function profileLabel(member) {
+  if (member.status === "declined") return "Declined";
+  if (member.status === "requested") return "Asked to join";
+  const listed = wishLines(member.wishes).length > 0 || member.wishListId || String(member.hobbies || "").trim() || String(member.dislikes || "").trim();
+  if (listed) return "Wishlist added";
+  if (member.status === "accepted") return "Joined";
+  return "Invited";
+}
+
 function memberView(member) {
   return {
     id: member.id,
@@ -133,7 +142,8 @@ function memberView(member) {
     email: member.email,
     phone: member.phone,
     listTitle: member.listTitle,
-    hasWishes: wishLines(member.wishes).length > 0 || Boolean(member.wishListId),
+    hasWishes: wishLines(member.wishes).length > 0 || Boolean(member.wishListId) || Boolean(String(member.hobbies || "").trim()) || Boolean(String(member.dislikes || "").trim()),
+    profile: profileLabel(member),
     status: member.status || "invited",
     exchangeRole: member.exchangeRole || "member",
     inviteToken: member.inviteToken || "",
@@ -554,6 +564,7 @@ async function handleWishlistGet(user) {
             listTitle: receiver.listTitle,
             wishes: receiver.wishes,
             hobbies: receiver.hobbies,
+            dislikes: receiver.dislikes,
             ageBand: receiver.ageBand,
             shopFor: receiver.shopFor,
           };
@@ -571,6 +582,7 @@ async function handleWishlistGet(user) {
       shopFor: member.shopFor,
       wishes: member.wishes,
       hobbies: member.hobbies,
+      dislikes: member.dislikes,
       drawn: Boolean(exchange.drawnAt),
       givingTo,
     });
@@ -598,6 +610,7 @@ async function handleWishlistSave(user, body) {
       shopFor,
       wishes: clip(body.wishes, 4000),
       hobbies: clip(body.hobbies, 500),
+      dislikes: body.dislikes === undefined ? member.dislikes : clip(body.dislikes, 500),
     })
     .where(eq(members.id, member.id));
   return handleWishlistGet(user);
@@ -634,11 +647,17 @@ async function handleInviteDecline(token) {
   return json({ status: "declined" });
 }
 
-async function handleInviteAccept(user, token) {
+async function handleInviteAccept(user, token, body = {}) {
   const [member] = await db.select().from(members).where(eq(members.inviteToken, token)).limit(1);
   const decision = acceptDecision({ member, user });
   if (!decision.ok) return json({ error: decision.error }, decision.status);
-  await db.update(members).set({ status: "accepted", userId: user.id }).where(eq(members.id, member.id));
+  await db.update(members).set({
+    status: "accepted",
+    userId: user.id,
+    wishes: clip(body.wishes ?? member.wishes, 4000),
+    hobbies: clip(body.likes ?? body.hobbies ?? member.hobbies, 500),
+    dislikes: clip(body.dislikes ?? member.dislikes, 500),
+  }).where(eq(members.id, member.id));
   return json({ status: "accepted", exchangeId: member.exchangeId });
 }
 
@@ -691,6 +710,9 @@ async function handleAssignment(user, exchangeId) {
     exchangeId,
     exchangeTitle: exchange.title,
     recipientName: receiver?.name || "",
+    wishes: wishLines(receiver?.wishes),
+    likes: receiver?.hobbies || "",
+    dislikes: receiver?.dislikes || "",
     items,
   });
 }
@@ -1162,7 +1184,7 @@ export default async function handler(req, context) {
     if (!user?.id) return json({ error: "Sign in to continue." }, 401);
     if (parts[1] === "retention") return handleRetention(req, user, body);
     if (parts[1] === "invites" && parts[2] && parts[3] === "accept" && req.method === "POST") {
-      return handleInviteAccept(user, parts[2]);
+      return handleInviteAccept(user, parts[2], body);
     }
     if (parts[1] === "join" && parts[2] && parts[3] === "request" && req.method === "POST") {
       return handleJoinRequest(user, parts[2], body);

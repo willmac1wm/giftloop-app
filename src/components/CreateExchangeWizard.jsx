@@ -374,7 +374,7 @@ function NamesStep({ event, patch, onBack, onContinue }) {
   return (
     <StepCard
       title="Who is drawing names?"
-      lede="Add an email or mobile for each person. That’s how you’ll send their private link after the draw. Nothing is sent yet."
+      lede="Add a name plus an email or mobile. They fill in their own wishlist when they accept. Nothing is sent yet."
     >
       <div className="friend-card mb-4">
         <label className="text-xs font-semibold uppercase tracking-wider text-slate-400" htmlFor="organizer-name">
@@ -577,31 +577,30 @@ function personFields(event, person) {
 }
 
 function WishesStep({ event, patch, onBack, onContinue }) {
-  const people = materializeParticipants(event);
-  const [activeId, setActiveId] = useState(people[0]?.id || '');
-  const person = people.find((item) => item.id === activeId) || people[0];
-  const fields = person ? personFields(event, person) : {};
+  const organizer = materializeParticipants(event).find((person) => person.isOrganizer) || null;
+  const fields = organizer ? personFields(event, organizer) : {};
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-2xl font-bold font-heading text-white">My wish list</h2>
         <p className="text-sm text-slate-300 mt-1">
-          Add a product link or a gift idea. Filter by price, age, and who the gift is for when you want more ideas. Nothing here needs an account.
+          Add your own ideas here. Friends add their wishlist, likes, and dislikes when they accept the invite.
         </p>
       </div>
-      {person && (
+      {organizer ? (
         <GiftFinder
-          key={person.id}
-          people={people}
-          activePersonId={person.id}
-          onSelectPerson={setActiveId}
-          personName={person.name}
+          key={organizer.id}
+          people={[organizer]}
+          activePersonId={organizer.id}
+          personName={organizer.name}
           budget={event.budget}
-          onChange={(partial) => patch(profilePatch(event, person, partial))}
+          onChange={(partial) => patch(profilePatch(event, organizer, partial))}
           {...fields}
         />
+      ) : (
+        <p className="text-sm text-slate-300">You are not in this draw. Each guest adds their own list when they accept.</p>
       )}
-      <StepNav onBack={onBack} onContinue={onContinue} continueLabel="Save wish lists" />
+      <StepNav onBack={onBack} onContinue={onContinue} continueLabel="Continue" />
     </div>
   );
 }

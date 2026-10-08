@@ -9,6 +9,7 @@ import AdminScreen from './components/AdminScreen';
 import WishListScreen from './components/WishListScreen';
 import InviteScreen from './components/InviteScreen';
 import AssignmentScreen from './components/AssignmentScreen';
+import DeviceProfileScreen from './components/DeviceProfileScreen';
 import SupportScreen from './components/SupportScreen';
 import MerchantScreen from './components/MerchantScreen';
 import WhiteElephantTab from './components/WhiteElephantTab';
@@ -36,10 +37,11 @@ function entryFromLocation() {
       inviteCode: view === 'invite' || view === 'join' ? params.get('code') || '' : '',
       openJoin: view === 'join',
       assignmentExchangeId: view === 'assignment' ? params.get('exchange') || '' : '',
+      profilePersonId: view === 'profile' ? params.get('person') || '' : '',
       revealPayload: view === 'reveal' && token ? decodeSecretPayload(token) : null,
     };
   } catch {
-    return { inviteCode: '', openJoin: false, assignmentExchangeId: '', revealPayload: null };
+    return { inviteCode: '', openJoin: false, assignmentExchangeId: '', profilePersonId: '', revealPayload: null };
   }
 }
 
@@ -57,6 +59,7 @@ export default function App() {
     const start = entryFromLocation();
     if (start.inviteCode) return 'invite';
     if (start.assignmentExchangeId) return 'assignment';
+    if (start.profilePersonId) return 'profile';
     return 'home';
   });
   const [afterAccount, setAfterAccount] = useState('home');
@@ -79,6 +82,7 @@ export default function App() {
   const [inviteCode, setInviteCode] = useState(() => entryFromLocation().inviteCode);
   const [openJoin, setOpenJoin] = useState(() => entryFromLocation().openJoin);
   const [assignmentExchangeId, setAssignmentExchangeId] = useState(() => entryFromLocation().assignmentExchangeId);
+  const [profilePersonId, setProfilePersonId] = useState(() => entryFromLocation().profilePersonId);
   const [whiteElephant, setWhiteElephant] = useState(() => {
     try {
       const saved = localStorage.getItem('giftloop_whiteelephant_v2');
@@ -125,6 +129,10 @@ export default function App() {
         setOpenJoin(view === 'join');
       }
       if (view === 'assignment') setAssignmentExchangeId(params.get('exchange') || '');
+      if (view === 'profile') {
+        setProfilePersonId(params.get('person') || '');
+        setArea('profile');
+      }
       if (view === 'reveal' && token) {
         const decoded = decodeSecretPayload(token);
         if (decoded) {
@@ -230,6 +238,23 @@ export default function App() {
   const handleLoadSampleExchange = () => {
     sound.playClick();
     setExchange(sampleExchange());
+  };
+
+  const saveDeviceProfile = (personId, fields) => {
+    const wishlist = String(fields.wishes || '').split('\n').map((line) => line.trim()).filter(Boolean);
+    const likes = String(fields.likes || '').trim();
+    const dislikes = String(fields.dislikes || '').trim();
+    setExchange((current) => ({
+      ...current,
+      organizerWishes: personId === current.organizerId ? fields.wishes || '' : current.organizerWishes,
+      organizerHobbies: personId === current.organizerId ? likes : current.organizerHobbies,
+      participants: (current.participants || []).map((person) => (
+        person.id === personId ? { ...person, wishlist, likes, dislikes, joined: true } : person
+      )),
+      nameRows: (current.nameRows || []).map((row) => (
+        row.id === personId ? { ...row, wishes: fields.wishes || '', hobbies: likes, dislikes } : row
+      )),
+    }));
   };
 
   const leaveAccount = () => {
@@ -421,6 +446,13 @@ export default function App() {
               setArea('account');
             }}
             onOpenAffiliate={staffAccess(user) === 'admin' ? () => setShowAffiliateModal(true) : null}
+          />
+        )}
+        {area === 'profile' && (
+          <DeviceProfileScreen
+            event={exchange}
+            personId={profilePersonId}
+            onSave={saveDeviceProfile}
           />
         )}
         {area === 'exchange' && (

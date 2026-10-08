@@ -63,7 +63,7 @@ export function revealUrl({ origin, event, giver, receiver, affiliate }) {
     ageBand: receiver.ageBand || "",
     shopFor: receiver.shopFor || "",
     likes: receiver.hobbies || "",
-    dislikes: "",
+    dislikes: receiver.dislikes || "",
     budget: event.budget || "",
     exchangeDate: event.eventDate || "",
     eventTitle: event.title || "Secret Santa",

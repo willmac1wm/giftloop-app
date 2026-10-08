@@ -251,8 +251,7 @@ export default function AdminScreen({ user, onNeedAccount, initialExchangeId = "
                 <li key={member.id} className="flex items-center justify-between gap-2 text-sm border border-white/10 rounded-lg px-3 py-2">
                   <span>
                     <strong className="text-white">{member.name}</strong>
-                    <span className="text-slate-400"> · {member.status} · {member.email || "no email"} · {member.phone || "no phone"}</span>
-                    {member.hasWishes ? <span className="text-emerald-300"> · wishes</span> : <span> · no wishes yet</span>}
+                    <span className="text-slate-400"> · {member.profile || member.status} · {member.email || "no email"} · {member.phone || "no phone"}</span>
                   </span>
                   <span className="flex gap-2">
                     {member.status === "requested" && !exchange.drawn && (
@@ -275,6 +274,9 @@ export default function AdminScreen({ user, onNeedAccount, initialExchangeId = "
                   <UserPlus size={14} /> Add person
                 </button>
               </form>
+            )}
+            {!exchange.drawn && (
+              <p className="text-xs text-slate-400">They add wishlist ideas, likes, and dislikes when they accept the invite.</p>
             )}
 
             {!exchange.drawn && (

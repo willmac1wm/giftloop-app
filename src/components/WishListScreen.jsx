@@ -249,8 +249,16 @@ export default function WishListScreen({ user, onNeedAccount, exchangeId = "" })
             Wishes, one per line
             <textarea className="glass-input w-full mt-1 min-h-28" value={draft.wishes || ""} onChange={(e) => setDraft({ ...draft, wishes: e.target.value })} />
           </label>
+          <label className="block text-xs text-slate-300">
+            Likes and hobbies
+            <textarea className="glass-input w-full mt-1" rows={2} value={draft.hobbies || ""} onChange={(e) => setDraft({ ...draft, hobbies: e.target.value })} />
+          </label>
+          <label className="block text-xs text-slate-300">
+            Dislikes and allergies
+            <textarea className="glass-input w-full mt-1" rows={2} value={draft.dislikes || ""} onChange={(e) => setDraft({ ...draft, dislikes: e.target.value })} />
+          </label>
           <details>
-            <summary className="text-xs text-slate-300 cursor-pointer">Age, who the gifts are for, and hobbies</summary>
+            <summary className="text-xs text-slate-300 cursor-pointer">Age and who the gifts are for</summary>
           <div className="grid sm:grid-cols-2 gap-2 mt-2">
             <label className="block text-xs text-slate-300">
               Age
@@ -267,10 +275,6 @@ export default function WishListScreen({ user, onNeedAccount, exchangeId = "" })
               </select>
             </label>
           </div>
-          <label className="block text-xs text-slate-300 mt-2">
-            Hobbies
-            <input className="glass-input w-full mt-1" value={draft.hobbies || ""} onChange={(e) => setDraft({ ...draft, hobbies: e.target.value })} />
-          </label>
           </details>
           <button className="btn btn-gold text-sm" type="submit" disabled={busy}>
             <Save size={14} /> Save wish list
@@ -282,7 +286,8 @@ export default function WishListScreen({ user, onNeedAccount, exchangeId = "" })
                 <p className="text-sm text-white mt-1">You are giving to {draft.givingTo.name}</p>
                 {draft.givingTo.listTitle && <p className="text-xs text-slate-400 mt-1">{draft.givingTo.listTitle}</p>}
                 <p className="text-sm text-slate-200 mt-2 whitespace-pre-line">{draft.givingTo.wishes || "No wishes yet."}</p>
-                {draft.givingTo.hobbies && <p className="text-xs text-slate-400 mt-2">Hobbies: {draft.givingTo.hobbies}</p>}
+                {draft.givingTo.hobbies && <p className="text-xs text-slate-400 mt-2">Likes and hobbies: {draft.givingTo.hobbies}</p>}
+                {draft.givingTo.dislikes && <p className="text-xs text-rose-200 mt-1">Dislikes and allergies: {draft.givingTo.dislikes}</p>}
               </>
             ) : (
               <p className="text-sm text-slate-300 mt-1">{draft.drawn ? "Your match is not ready yet." : "Names have not been drawn yet."}</p>

@@ -97,6 +97,7 @@ export function materializeParticipants(event) {
       shopFor: row.shopFor || '',
       wishlist: wishLines(row.wishes, prev.wishlist),
       likes: textOrPrevious(row.hobbies, prev.likes),
+      dislikes: textOrPrevious(row.dislikes, prev.dislikes),
       isOrganizer: false,
     });
   }

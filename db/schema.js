@@ -30,6 +30,7 @@ export const members = pgTable("members", {
   shopFor: text("shop_for").notNull().default(""),
   wishes: text("wishes").notNull().default(""),
   hobbies: text("hobbies").notNull().default(""),
+  dislikes: text("dislikes").notNull().default(""),
   status: text("status").notNull().default("invited"),
   inviteToken: text("invite_token").unique(),
   exchangeRole: text("exchange_role").notNull().default("member"),

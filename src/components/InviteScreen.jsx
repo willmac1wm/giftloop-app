@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Mail } from "lucide-react";
 import { api } from "../account/api";
+import ParticipantProfileForm from "./ParticipantProfileForm";
 
 export default function InviteScreen({ code, user, onNeedAccount, onDone, openJoin = false }) {
   const [invite, setInvite] = useState(null);
@@ -21,7 +22,7 @@ export default function InviteScreen({ code, user, onNeedAccount, onDone, openJo
     };
   }, [code, openJoin]);
 
-  const respond = (action) => {
+  const respond = (action, fields = {}) => {
     setError("");
     if (openJoin) {
       api(`/api/join/${encodeURIComponent(code)}/request`, { method: "POST", json: { name: user?.name || "" } })
@@ -30,13 +31,19 @@ export default function InviteScreen({ code, user, onNeedAccount, onDone, openJo
       return;
     }
     const path = action === "accept" ? "accept" : "decline";
-    api(`/api/invites/${encodeURIComponent(code)}/${path}`, { method: "POST", json: {} })
+    const json = action === "accept"
+      ? { wishes: fields.wishes || "", likes: fields.likes || "", dislikes: fields.dislikes || "" }
+      : {};
+    api(`/api/invites/${encodeURIComponent(code)}/${path}`, { method: "POST", json })
       .then((data) => {
         setStatus(data.status);
         if (data.status === "accepted" && onDone) onDone();
       })
       .catch((err) => setError(err.message));
   };
+
+  const currentStatus = status || invite?.status || "";
+  const canFillProfile = Boolean(user) && !openJoin && invite && currentStatus !== "accepted" && currentStatus !== "declined";
 
   return (
     <section className="glass-panel p-6 max-w-lg mx-auto space-y-3">
@@ -60,11 +67,27 @@ export default function InviteScreen({ code, user, onNeedAccount, onDone, openJo
           </p>
         </>
       )}
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn btn-gold text-sm" onClick={() => (user ? respond("accept") : onNeedAccount())}>
-          {user ? (openJoin ? "Ask to join" : "Accept") : "Sign in to continue"}
+      {canFillProfile && (
+        <ParticipantProfileForm
+          name={invite.name}
+          submitLabel="Accept and save my list"
+          onSubmit={(fields) => respond("accept", fields)}
+        />
+      )}
+      {user && !openJoin && currentStatus === "accepted" && (
+        <button type="button" className="btn btn-primary text-sm" onClick={() => onDone && onDone()}>
+          Edit my wish list
         </button>
-        {!openJoin && <button type="button" className="btn btn-secondary text-sm" onClick={() => respond("decline")}>Decline</button>}
+      )}
+      <div className="flex flex-wrap gap-2">
+        {(!user || openJoin) && (
+          <button type="button" className="btn btn-gold text-sm" onClick={() => (user ? respond("accept") : onNeedAccount())}>
+            {user ? "Ask to join" : "Sign in to continue"}
+          </button>
+        )}
+        {!openJoin && currentStatus !== "declined" && currentStatus !== "accepted" && (
+          <button type="button" className="btn btn-secondary text-sm" onClick={() => respond("decline")}>Decline</button>
+        )}
       </div>
     </section>
   );

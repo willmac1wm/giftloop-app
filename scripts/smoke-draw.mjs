@@ -262,6 +262,15 @@ const serverPayload = decodeSecretPayload(new URL(serverUrl).searchParams.get('t
 assert(serverUrl.startsWith('https://giftloop.test/?view=reveal&t='), serverUrl);
 assert(serverPayload.giverName === 'Ada' && serverPayload.receiverName === 'Bea', 'reveal token names the match');
 assert(serverPayload.wishlist.join('|') === 'Wool socks|Candle', 'reveal token carries the wish list');
+assert(serverPayload.likes === 'hiking' && serverPayload.dislikes === '', 'reveal token carries likes and leaves dislikes empty when unset');
+const withDislikes = decodeSecretPayload(new URL(revealUrl({
+  origin: 'https://giftloop.test',
+  event: { title: 'Family' },
+  giver: { name: 'Ada' },
+  receiver: { name: 'Bea', wishes: 'Wool socks', hobbies: 'hiking', dislikes: 'Nut allergy' },
+  affiliate: {},
+})).searchParams.get('t'));
+assert(withDislikes.dislikes === 'Nut allergy' && withDislikes.likes === 'hiking', 'reveal token carries dislikes the guest entered');
 assert(serverPayload.affiliate.amazonTag === 'mytag-20', 'reveal token carries the organizer affiliate tag');
 
 const repeatDraw = planDraw({ alreadyDrawn: true, people: [{ id: 'a', name: 'Ada', status: 'accepted' }], exclusions: [] });

@@ -60,6 +60,13 @@ export default function AssignmentScreen({ exchangeId, user, onNeedAccount, onOp
             <button type="button" className="btn btn-secondary text-sm" onClick={onOpenWishlist}>My wish list</button>
           </div>
           <h3 className="text-base font-semibold text-white">My recipient&apos;s wishes</h3>
+          {(assignment.wishes || []).length > 0 && (
+            <ul className="text-sm text-slate-200 list-disc pl-5 space-y-1">
+              {assignment.wishes.map((line) => <li key={line}>{line}</li>)}
+            </ul>
+          )}
+          {assignment.likes && <p className="text-sm text-slate-300">Likes and hobbies: {assignment.likes}</p>}
+          {assignment.dislikes && <p className="text-sm text-rose-200">Dislikes and allergies: {assignment.dislikes}</p>}
           <GiftVibeCard vibe={assignment.giftVibe} />
           <ShopDisclosure />
           <ul className="space-y-2">
