@@ -755,6 +755,28 @@ await check("support lookup does not include the recipient", async () => {
   assert(!lookup.text.includes("recipientName") && !lookup.text.includes("receiverMemberId"), lookup.text);
 });
 
+await check("deleting an account removes that person's saved data", async () => {
+  const detail = await createExchange("Delete me", [{ name: "Bea", email: "bea@example.com" }]);
+  await acceptGuests(detail, { "bea@example.com": "bea" });
+  const created = await call("POST", "/api/exchanges", {
+    token: "stranger",
+    body: { title: "Stranger private", eventDate: "2026-12-20", timezone: "America/Los_Angeles", budget: "25" },
+  });
+  assert(created.status === 201, created);
+  const refused = await call("POST", "/api/account/delete", { token: "stranger", body: {} });
+  assert(refused.status === 400, refused);
+  const removed = await call("POST", "/api/account/delete", { token: "bea", body: { confirm: "delete" } });
+  assert(removed.status === 200 && removed.json.deleted === true, removed);
+  const seats = await admin.query("select user_id, email from members where user_id = 'user-bea' or lower(email) = 'bea@example.com'");
+  assert(seats.rows.length === 0, seats.rows);
+  const kept = await admin.query("select id from exchanges where id = $1", [detail.exchange.id]);
+  assert(kept.rows.length === 1, kept.rows);
+  const strangerGone = await call("POST", "/api/account/delete", { token: "stranger", body: { confirm: "delete" } });
+  assert(strangerGone.status === 200, strangerGone);
+  const strangerExchanges = await admin.query("select id from exchanges where organizer_id = 'user-stranger'");
+  assert(strangerExchanges.rows.length === 0, strangerExchanges.rows);
+});
+
 await admin.end();
 const failed = results.filter((row) => row.result === "failed");
 console.log(JSON.stringify({ passed: results.length - failed.length, failed: failed.length, results }, null, 2));

@@ -3,6 +3,7 @@ import { Gift } from "lucide-react";
 import { api } from "../account/api";
 import { GiftVibeCard } from "./GiftVibe";
 import ShopDisclosure from "./ShopDisclosure";
+import { openExternal } from "../native/shell";
 
 export default function AssignmentScreen({ exchangeId, user, onNeedAccount, onOpenWishlist }) {
   const [assignment, setAssignment] = useState(null);
@@ -84,7 +85,7 @@ export default function AssignmentScreen({ exchangeId, user, onNeedAccount, onOp
                         setError("This gift has no store link.");
                         return;
                       }
-                      window.open(data.shoppingUrl, "_blank", "noopener");
+                      openExternal(data.shoppingUrl);
                     }).catch((err) => setError(err.message))}
                   >
                     Shop{item.retailer ? ` at ${item.retailer}` : ""}

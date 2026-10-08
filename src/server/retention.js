@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { exchanges, members, wishLists, giftPreferences, exchangeTraditions, notificationJobs } from "../../db/schema.js";
+import { rememberReminder } from "./reminderGate.js";
 import { cleanTradition, cleanVibe, EMPTY_VIBE, nextExchangeValues } from "../retention/model.js";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function fail(message, status = 400) { throw Object.assign(new Error(message), { status }); }
@@ -80,6 +81,7 @@ export function retentionService(db) {
         if (sending) fail("The reminder is already being sent. Please try again later.", 409);
         await tx.update(notificationJobs).set({ status: "cancelled", detail: "Changed by the organizer." }).where(and(eq(notificationJobs.exchangeId, id), eq(notificationJobs.kind, "reunion"), inArray(notificationJobs.status, ["pending", "failed"])));
         if (!cancel) await tx.insert(notificationJobs).values({ exchangeId: id, memberId: seat.id, channel: "email", kind: "reunion", runAt: when });
+        if (!cancel) await rememberReminder(when);
         return { saved: true };
       });
     },

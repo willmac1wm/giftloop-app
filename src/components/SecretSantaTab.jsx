@@ -12,6 +12,7 @@ import ExchangeWishLinks from './ExchangeWishLinks';
 import { organizerMatch, organizerPerson } from '../exchange/progress';
 import { profileStatus } from '../exchange/profileStatus';
 import { buildRevealPayload } from '../utils/revealLink';
+import ExchangeDateActions from './ExchangeDateActions';
 
 export default function SecretSantaTab({
   event,
@@ -209,6 +210,9 @@ export default function SecretSantaTab({
               className="glass-input w-full text-slate-200"
             />
           </div>
+        </div>
+        <div className="mt-3">
+          <ExchangeDateActions id={event.title} title={event.title} date={event.exchangeDate} />
         </div>
 
         <div className="mt-4 pt-3 border-t border-white/5">

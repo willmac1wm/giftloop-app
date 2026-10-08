@@ -11,6 +11,8 @@ import InviteScreen from './components/InviteScreen';
 import AssignmentScreen from './components/AssignmentScreen';
 import DeviceProfileScreen from './components/DeviceProfileScreen';
 import SupportScreen from './components/SupportScreen';
+import PolicyScreen from './components/PolicyScreen';
+import { privacySections, supportSections } from './content/policies';
 import MerchantScreen from './components/MerchantScreen';
 import WhiteElephantTab from './components/WhiteElephantTab';
 import { initialWhiteElephantEvent } from './data/mockData';
@@ -38,10 +40,11 @@ function entryFromLocation() {
       openJoin: view === 'join',
       assignmentExchangeId: view === 'assignment' ? params.get('exchange') || '' : '',
       profilePersonId: view === 'profile' ? params.get('person') || '' : '',
+      policy: view === 'privacy' ? 'privacy' : view === 'contact' ? 'contact' : '',
       revealPayload: view === 'reveal' && token ? decodeSecretPayload(token) : null,
     };
   } catch {
-    return { inviteCode: '', openJoin: false, assignmentExchangeId: '', profilePersonId: '', revealPayload: null };
+    return { inviteCode: '', openJoin: false, assignmentExchangeId: '', profilePersonId: '', policy: '', revealPayload: null };
   }
 }
 
@@ -60,6 +63,7 @@ export default function App() {
     if (start.inviteCode) return 'invite';
     if (start.assignmentExchangeId) return 'assignment';
     if (start.profilePersonId) return 'profile';
+    if (start.policy) return start.policy;
     return 'home';
   });
   const [afterAccount, setAfterAccount] = useState('home');
@@ -133,6 +137,8 @@ export default function App() {
         setProfilePersonId(params.get('person') || '');
         setArea('profile');
       }
+      if (view === 'privacy') setArea('privacy');
+      if (view === 'contact') setArea('contact');
       if (view === 'reveal' && token) {
         const decoded = decodeSecretPayload(token);
         if (decoded) {
@@ -327,6 +333,8 @@ export default function App() {
         onOpenWhiteElephant={() => setArea('white-elephant')}
         onOpenSupport={() => setArea('support')}
         onOpenMerchants={() => setArea('merchants')}
+        onOpenPrivacy={() => setArea('privacy')}
+        onOpenContact={() => setArea('contact')}
       />
 
       <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 lg:p-8 z-10">
@@ -425,6 +433,24 @@ export default function App() {
         )}
         {area === 'white-elephant' && (
           <WhiteElephantTab event={whiteElephant} onUpdateEvent={setWhiteElephant} />
+        )}
+        {area === 'privacy' && (
+          <PolicyScreen
+            title="Privacy policy"
+            lede="Names in brackets are still placeholders."
+            sections={privacySections}
+            otherHref="/support/"
+            otherLabel="Support"
+          />
+        )}
+        {area === 'contact' && (
+          <PolicyScreen
+            title="Support"
+            lede="This is the public contact page."
+            sections={supportSections}
+            otherHref="/privacy/"
+            otherLabel="Privacy policy"
+          />
         )}
         {area === 'support' && (
           <SupportScreen

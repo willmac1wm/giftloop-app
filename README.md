@@ -15,7 +15,7 @@ These run in the browser with `npm run dev`. They do not need a database.
 - After the draw, each person gets a reveal link. **Email link** and **Text link** open the organizer’s own mail and messages apps. Copy, QR, print, WhatsApp, and the device share sheet are there too. Gift Loop does not send those messages.
 - The reveal page reads `?view=reveal&t=`. The token contains the giver, the receiver, and the wish list.
 - Shopping uses Gift Loop referral codes: Amazon, Walmart, Target, Bass Pro Shops, Cabela's, and Best Buy. **Affiliate tags** are an administrator control. They accept a code or a full affiliate link and store it on this device. Members do not see that control. Shopping actions say when a link may include a referral code. The deal banner, shopping-center doors, and gift finder use those codes.
-- The phone browser can use the site. `index.html` has a web manifest and Apple web-app tags. That is not an App Store build.
+- The phone browser can use the site. `index.html` has a web manifest and Apple web-app tags. An iOS Capacitor project is in `ios/`. It has not been archived or submitted. `APP_STORE_CHECKLIST.md` is the Mac path for that.
 
 ## Partially connected
 
@@ -37,7 +37,7 @@ No concrete limit in this app requires replacing Netlify Database, Netlify Ident
 
 Account → Notifications → **Reminder timing & quiet hours** lets each member choose a gift-date reminder 1, 3, 7, or 14 days ahead, a preferred local time, an IANA time zone, and quiet-hour start/end times. Defaults are seven days ahead at 09:00 with 21:00–08:00 quiet hours. Timing does not enroll anyone in SMS or turn off opt-outs. Gift-date reminders still require the organizer to queue them; saving preferences alone does not schedule new messages.
 
-Changes reschedule pending gift-date jobs. The worker checks current preferences before sending, delays messages during personal quiet hours, and cancels gift-date reminders after the event date. Explicit next-exchange planning dates are preserved, with quick choices for one month, six months, or six weeks before next year’s gift date. A missed preferred time can deliver on the next eligible run while the gift date has not passed. Scheduled processing is approximately every 15 minutes, not exact-time delivery. Identity sign-in emails are outside these exchange-message preferences.
+Changes reschedule pending gift-date jobs. The worker checks current preferences before sending, delays messages during personal quiet hours, and cancels gift-date reminders after the event date. Explicit next-exchange planning dates are preserved, with quick choices for one month, six months, or six weeks before next year’s gift date. A missed preferred time can deliver on the next eligible run while the gift date has not passed. The scheduled function runs once an hour. It does not open the database when no reminder is due. Delivery is not exact to the minute. Identity sign-in emails are outside these exchange-message preferences.
 
 Deploy migration `20261008002502_notification_timing` before using the settings. `npm run test:notification-timing` covers local dates, fractional time zones, daylight-saving gaps/folds, quiet hours, preferences, opt-outs, and planning presets. Live provider and iPhone checks remain pending.
 
@@ -92,7 +92,7 @@ npx netlify link --id f860821f-ec0f-46f7-85e3-384f68a9fd51
 npx netlify deploy --build
 ```
 
-`npx netlify deploy --build` uploads a draft. `npx netlify deploy --build --prod` publishes that same site’s public URL. Do not point these commands at a different site. Local `npm run dev` still does not run Identity or the database.
+`npx netlify deploy --build` uploads a draft preview. Use that while iterating. `npx netlify deploy --build --prod` publishes the public URL and spends production credits, so publish once when a batch is ready, not on every change. Do not point these commands at a different site. Local `npm run dev` still does not run Identity or the database. `AGENTS.md` is the note other agents should follow.
 
 Git-based builds are configured for that one branch. They currently fail while preparing the repo (`Host key verification failed`) because this project has no GitHub deploy key and the Netlify GitHub app is not installed on `willmac1wm/giftloop-app`. Installing the Netlify GitHub app on that repository, with access to this branch, is what makes a push deploy by itself. Until then, use the CLI deploy above.
 

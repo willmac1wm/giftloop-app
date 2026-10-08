@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Mail, MessageSquare, Shield, Shuffle, UserPlus } from "lucide-react";
 import { api } from "../account/api";
+import ExchangeDateActions from "./ExchangeDateActions";
 import { getStoredAffiliateConfig } from "../utils/affiliate";
 import { sound } from "../utils/audio";
 
@@ -211,6 +212,9 @@ export default function AdminScreen({ user, onNeedAccount, initialExchangeId = "
                   Next: {exchange.drawn ? "Reveal your recipient, or tell people their recipient is ready." : exchange.drawReady ? "Draw names." : "Wait until at least two guests accept."}
                   {exchange.signupDeadline ? ` Signup deadline ${exchange.signupDeadline}.` : ""}
                 </p>
+                <div className="mt-2">
+                  <ExchangeDateActions id={exchange.id} title={exchange.title} date={exchange.eventDate} />
+                </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 {exchange.drawn ? (

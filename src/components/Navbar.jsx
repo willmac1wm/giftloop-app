@@ -24,6 +24,8 @@ export default function Navbar({
   onOpenWhiteElephant,
   onOpenSupport,
   onOpenMerchants,
+  onOpenPrivacy,
+  onOpenContact,
 }) {
   const [open, setOpen] = useState(false);
   const headerRef = useRef(null);
@@ -108,6 +110,8 @@ export default function Navbar({
           <button type="button" className={area === "account" ? "is-current" : ""} onClick={() => go(onOpenAccount)}>
             Account and support
           </button>
+          <button type="button" className={area === "privacy" ? "is-current" : ""} onClick={() => go(onOpenPrivacy)}>Privacy policy</button>
+          <button type="button" className={area === "contact" ? "is-current" : ""} onClick={() => go(onOpenContact)}>Contact</button>
           <button type="button" onClick={() => go(onOpenInstallModal)}>Add to iPhone</button>
           <button type="button" onClick={toggleSound}>
             {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}

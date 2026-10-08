@@ -2,6 +2,7 @@ import React from 'react';
 import { getStoredAffiliateConfig } from '../utils/affiliate';
 import { dealLinks } from '../utils/deals';
 import StoreConcourse from './StoreConcourse';
+import { openExternal } from '../native/shell';
 
 export default function DealBanner({ affiliate }) {
   const config = affiliate || (typeof localStorage === 'undefined' ? undefined : getStoredAffiliateConfig());
@@ -16,7 +17,7 @@ export default function DealBanner({ affiliate }) {
       {deals.live && (
         <p className="deal-sale-line">
           Prime Big Deal Days through October 7.{' '}
-          <a href={amazon.href} target="_blank" rel="noopener noreferrer">Amazon sale</a>
+          <a href={amazon.href} target="_blank" rel="noopener noreferrer" onClick={(event) => { event.preventDefault(); openExternal(amazon.href); }}>Amazon sale</a>
         </p>
       )}
       <StoreConcourse

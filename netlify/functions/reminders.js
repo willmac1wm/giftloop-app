@@ -1,7 +1,8 @@
-import { and, eq, inArray, lte } from "drizzle-orm";
+import { and, asc, eq, inArray, lte } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { deliveries, exchanges, members, notificationJobs, notificationPrefs } from "../../db/schema.js";
 import { scheduledGiftReminder, localDay } from "../../src/retention/notificationTiming.js";
+import { refreshReminderMarker, reminderDue } from "../../src/server/reminderGate.js";
 import { assignmentNotice } from "../../src/server/assignments.js";
 import { providerEnv, readProviders, sendEmail, sendSms } from "../../src/server/messages.js";
 import { deliveryDecision } from "../../src/server/notifyPolicy.js";
@@ -15,6 +16,7 @@ function reminderText(exchange, origin, kind) {
 
 export default async function handler() {
   const now = new Date();
+  if (!(await reminderDue(now))) return new Response("idle");
   const jobs = await db
     .select()
     .from(notificationJobs)
@@ -114,9 +116,16 @@ export default async function handler() {
       }).where(eq(notificationJobs.id, job.id));
     }
   }
+  const [next] = await db
+    .select({ runAt: notificationJobs.runAt })
+    .from(notificationJobs)
+    .where(eq(notificationJobs.status, "pending"))
+    .orderBy(asc(notificationJobs.runAt))
+    .limit(1);
+  await refreshReminderMarker(next?.runAt || null);
   return new Response("ok");
 }
 
 export const config = {
-  schedule: "*/15 * * * *",
+  schedule: "0 * * * *",
 };

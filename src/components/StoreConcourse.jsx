@@ -1,5 +1,6 @@
 import React from 'react';
 import { CENTER_STORES } from '../utils/affiliate';
+import { openExternal } from '../native/shell';
 
 export default function StoreConcourse({ activeId, onSelect, hrefFor, label = 'Shopping center' }) {
   return (
@@ -37,6 +38,12 @@ export default function StoreConcourse({ activeId, onSelect, hrefFor, label = 'S
             href={hrefFor ? hrefFor(store.id) : undefined}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(event) => {
+              const href = hrefFor ? hrefFor(store.id) : "";
+              if (!href) return;
+              event.preventDefault();
+              openExternal(href);
+            }}
           >
             {inner}
           </a>

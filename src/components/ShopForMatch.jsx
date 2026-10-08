@@ -3,6 +3,7 @@ import { ExternalLink, ShoppingBag } from 'lucide-react';
 import { SUPPORTED_STORES, applyAffiliateTag, detectStore, generateStoreSearchUrl } from '../utils/affiliate';
 import { ideasWithinBudget, shopQuery } from '../utils/shop';
 import ShopDisclosure from './ShopDisclosure';
+import { openExternal } from '../native/shell';
 
 const STORE_CLASS = {
   amazon: 'bg-[#ff9900]/15 text-[#fbbf24] border-[#ff9900]/30',
@@ -29,6 +30,7 @@ function StoreButtons({ query, config }) {
           href={store.href}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={(event) => { event.preventDefault(); openExternal(store.href); }}
           className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] font-semibold ${STORE_CLASS[store.id] || ''}`}
         >
           <span>{store.icon} {store.name}</span>
@@ -96,7 +98,7 @@ export default function ShopForMatch({
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-sm font-semibold text-white">{title}</span>
                   {taggedDirectUrl && (
-                    <a href={taggedDirectUrl} target="_blank" rel="noopener noreferrer" className="btn btn-gold text-[11px] py-1 px-2 shrink-0">
+                    <a href={taggedDirectUrl} target="_blank" rel="noopener noreferrer" className="btn btn-gold text-[11px] py-1 px-2 shrink-0" onClick={(event) => { event.preventDefault(); openExternal(taggedDirectUrl); }}>
                       Buy{storeName ? ` on ${storeName}` : ''}
                       <ExternalLink size={11} />
                     </a>

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { KeyRound, LogIn, UserPlus } from "lucide-react";
 import { api, authErrorMessage } from "../account/api";
+import { clearPrivateRevealNotes } from "../account/privacy";
 import { sound } from "../utils/audio";
 import NotificationSettings from "./NotificationSettings";
 
@@ -100,6 +101,12 @@ export default function AccountScreen({
           </div>
           <NotificationSettings />
           <SupportTicket />
+          <p className="text-xs text-slate-400">
+            <a className="text-sky-300" href="/privacy/">Privacy policy</a>
+            {" · "}
+            <a className="text-sky-300" href="/support/">Support</a>
+          </p>
+          <DeleteAccount onDeleted={onSignedOut} />
           {staff && (
             <div className="flex flex-wrap gap-2">
               <button type="button" className="btn btn-secondary text-xs" onClick={onOpenSupport}>Support tools</button>
@@ -177,6 +184,55 @@ export default function AccountScreen({
         <button type="button" className="text-xs text-slate-400 mt-4" onClick={onBack}>{backLabel}</button>
       )}
     </section>
+  );
+}
+
+function DeleteAccount({ onDeleted }) {
+  const [open, setOpen] = useState(false);
+  const [phrase, setPhrase] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const remove = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await api("/api/account/delete", { method: "POST", json: { confirm: "delete" } });
+      const identity = await import("@netlify/identity");
+      const current = identity.currentUser();
+      const token = current?.token?.access_token;
+      if (token) {
+        await fetch("/.netlify/identity/user", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      }
+      clearPrivateRevealNotes();
+      await identity.logout();
+      onDeleted();
+    } catch (err) {
+      setError(err.message || "The account could not be deleted.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button type="button" className="text-xs text-rose-300" onClick={() => setOpen(true)}>
+        Delete account
+      </button>
+    );
+  }
+
+  return (
+    <form className="space-y-2 border border-rose-500/30 rounded-xl p-3" onSubmit={remove}>
+      <h3 className="text-sm font-semibold text-white">Delete account</h3>
+      <p className="text-xs text-slate-300">
+        This removes exchanges you organize, your wish lists, and your notification settings. Your name, email, phone, and wishes are cleared from exchanges you joined. Type DELETE to confirm.
+      </p>
+      <input className="glass-input w-full" aria-label="Type DELETE to confirm" value={phrase} onChange={(e) => setPhrase(e.target.value)} />
+      {error && <p className="text-sm text-rose-300" role="alert">{error}</p>}
+      <button className="btn btn-secondary text-xs" type="submit" disabled={busy || phrase !== "DELETE"}>Delete my account and data</button>
+    </form>
   );
 }
 

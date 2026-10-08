@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Check, Copy, Eye, Mail, MessageCircle, Printer, QrCode, Send, Share2 } from 'lucide-react';
 import { sound } from '../utils/audio';
+import { openExternal, shareLink } from '../native/shell';
 import { withGiverContact } from '../data/eventState';
 import {
   buildRevealPayload,
@@ -54,18 +55,15 @@ export default function RevealLinksPanel({ event, onPreviewReveal, onUpdateEvent
   const handleNativeShare = async (match) => {
     const url = buildRevealUrl(event, match);
     sound.playClick();
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({
-          title: `Secret Santa - ${event.title}`,
-          text: nativeShareText(event, match.giver.name),
-          url,
-        });
-      } catch (err) {
-        if (err.name !== 'AbortError') console.error(err);
-      }
-    } else {
-      handleCopyLink(match);
+    try {
+      const result = await shareLink({
+        title: `Secret Santa - ${event.title}`,
+        text: nativeShareText(event, match.giver.name),
+        url,
+      });
+      if (result === 'unavailable') handleCopyLink(match);
+    } catch (err) {
+      if (err.name !== 'AbortError') console.error(err);
     }
   };
 
@@ -145,7 +143,7 @@ export default function RevealLinksPanel({ event, onPreviewReveal, onUpdateEvent
                     type="button"
                     onClick={() => {
                       const text = encodeURIComponent(whatsAppText(event, match.giver.name, url));
-                      window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+                      openExternal(`https://api.whatsapp.com/send?text=${text}`);
                     }}
                   >
                     <MessageCircle size={15} /> WhatsApp

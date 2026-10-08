@@ -36,6 +36,8 @@ import { DEFAULT_MERCHANTS, finalizeShoppingLink } from "../../src/server/shoppi
 import { validResendSignature } from "../../src/server/resendWebhook.js";
 import { SMS_STOP_WORDS, validTwilioSignature } from "../../src/server/twilio.js";
 import { DEFAULT_AFFILIATE_CONFIG } from "../../src/utils/affiliate.js";
+import { deleteAccountData } from "../../src/server/accountDeletion.js";
+import { rememberReminder } from "../../src/server/reminderGate.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const AGE_IDS = new Set(AGE_BANDS.map((item) => item.id));
@@ -476,6 +478,7 @@ async function handleNotify(exchange, body, req, context) {
         status: "pending",
         detail: decision.reason,
       });
+      await rememberReminder(decision.runAt);
       results.push({ name: person.name, status: "deferred" });
       continue;
     }
@@ -898,6 +901,7 @@ async function handleSettings(user, method, body) {
       ? { status: "cancelled", detail: "The gift date has passed or is missing." }
       : { runAt: target, detail: "Updated to your reminder timing." })
       .where(and(eq(notificationJobs.memberId, seat.id), eq(notificationJobs.kind, "reminder"), eq(notificationJobs.status, "pending")));
+    if (!expired && target) await rememberReminder(target);
   }
   if (!next.smsOptIn) await cancelSmsJobsForUser(user.id);
   return json({ ...next, smsStoppedAt: undefined, smsOptIn: next.smsOptIn });
@@ -922,13 +926,15 @@ async function handleQueueReminders(exchange) {
       const decision = deliveryDecision({ channel, kind: "reminder", prefs, memberStatus: person.status, now: reminderAt, timeZone: exchange.timezone || "UTC" });
       if (!decision.send && !decision.defer) continue;
       if (channel === "email" && !person.email) continue;
+      const runAt = decision.defer ? decision.runAt : reminderAt;
       await db.insert(notificationJobs).values({
         exchangeId: exchange.id,
         memberId: person.id,
         channel,
         kind: "reminder",
-        runAt: decision.defer ? decision.runAt : reminderAt,
+        runAt,
       });
+      await rememberReminder(runAt);
       queued += 1;
     }
   }
@@ -1174,6 +1180,16 @@ export default async function handler(req, context) {
     if (body === null) return json({ error: "That request was not valid JSON." }, 400);
 
     if (req.method === "GET" && parts.length === 2 && parts[1] === "session") return handleSession(req);
+    if (parts[1] === "account" && parts[2] === "delete" && req.method === "POST") {
+      const user = await currentUser(req);
+      if (!user?.id) return json({ error: "Sign in to continue." }, 401);
+      if (body.confirm !== "delete") return json({ error: "Confirm account deletion to continue." }, 400);
+      try {
+        return json(await deleteAccountData(db, user));
+      } catch (error) {
+        return json({ error: error.message || "The account could not be deleted." }, error.status || 500);
+      }
+    }
     if (parts[1] === "invites" && parts[2] && req.method === "GET") return handleInviteGet(parts[2]);
     if (parts[1] === "join" && parts[2] && parts.length === 3 && req.method === "GET") return handleJoinGet(parts[2]);
     if (parts[1] === "invites" && parts[2] && parts[3] === "decline" && req.method === "POST") {
@@ -1277,6 +1293,7 @@ export default async function handler(req, context) {
 export const config = {
   path: [
     "/api/session",
+    "/api/account/delete",
     "/api/retention/vibe",
     "/api/retention/history",
     "/api/retention/create",

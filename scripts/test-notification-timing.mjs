@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { atLocalTime, scheduledGiftReminder, timingPreferences, planningReminderPresets, dateTimeInput } from '../src/retention/notificationTiming.js';
+import { shouldOpenDatabase } from '../src/server/reminderGate.js';
 import { deliveryDecision, quietHours } from '../src/server/notifyPolicy.js';
 assert.equal(scheduledGiftReminder('2026-12-25', { timezone: 'America/New_York', reminderDays: 7, reminderTime: '09:00' }).toISOString(), '2026-12-18T14:00:00.000Z');
 assert.equal(scheduledGiftReminder('2026-12-25', { timezone: 'Asia/Kolkata', reminderDays: 14, reminderTime: '09:15' }).toISOString(), '2026-12-11T03:45:00.000Z');
@@ -17,4 +18,9 @@ for (const bad of [{ timezone: 'Mars/Olympus' }, { reminderDays: 400 }, { remind
 assert.equal(timingPreferences({ emailReminders: false }, { reminderDays: 14 }).reminderDays, 14);
 const presets = planningReminderPresets('2026-12-25', new Date('2026-10-07T12:00:00'));
 assert.equal(presets.length, 3); assert.equal(dateTimeInput(presets[2].date), '2027-11-13T09:00');
-console.log('Notification timing passed: lead days, local time, fractional time zones, DST gaps/folds, personal quiet hours, opt-outs, input validation, and planning presets.');
+const noon = new Date('2026-12-18T12:00:00Z');
+assert.equal(shouldOpenDatabase(undefined, noon), true);
+assert.equal(shouldOpenDatabase({ nextAt: null }, noon), false);
+assert.equal(shouldOpenDatabase({ nextAt: '2026-12-18T11:00:00Z' }, noon), true);
+assert.equal(shouldOpenDatabase({ nextAt: '2026-12-19T12:00:00Z' }, noon), false);
+console.log('Notification timing passed: lead days, local time, fractional time zones, DST gaps/folds, personal quiet hours, opt-outs, input validation, planning presets, and the idle reminder gate.');

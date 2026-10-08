@@ -4,6 +4,7 @@ import { AGE_BANDS, SHOP_FOR } from '../data/giftProfile';
 import { budgetCeiling } from '../utils/shop';
 import { CENTER_STORES, generateStoreSearchUrl } from '../utils/affiliate';
 import ShopDisclosure from './ShopDisclosure';
+import { openExternal } from '../native/shell';
 import StoreConcourse from './StoreConcourse';
 import { FINDER_CATEGORIES, filterGifts } from '../utils/giftFinder';
 import { sound } from '../utils/audio';
@@ -182,14 +183,14 @@ export default function GiftFinder({
                         {added ? 'On the list' : 'Add'}
                       </button>
                     )}
-                    <a className="btn btn-secondary text-xs" href={href} target="_blank" rel="noopener noreferrer">
+                    <a className="btn btn-secondary text-xs" href={href} target="_blank" rel="noopener noreferrer" onClick={(event) => { event.preventDefault(); openExternal(href); }}>
                       Shop at {storeName}
                       <ExternalLink size={12} />
                     </a>
                   </div>
                   <div className="gift-card-stores">
                     {CENTER_STORES.map((store) => (
-                      <a key={store.id} href={generateStoreSearchUrl(gift.name, store.id, affiliate)} target="_blank" rel="noopener noreferrer">
+                      <a key={store.id} href={generateStoreSearchUrl(gift.name, store.id, affiliate)} target="_blank" rel="noopener noreferrer" onClick={(event) => { event.preventDefault(); openExternal(generateStoreSearchUrl(gift.name, store.id, affiliate)); }}>
                         {store.name}
                       </a>
                     ))}
@@ -203,7 +204,7 @@ export default function GiftFinder({
           <div className="gift-finder-store-row">
             <span>Search stores for “{query.trim()}”</span>
             {CENTER_STORES.map((store) => (
-              <a key={store.id} href={generateStoreSearchUrl(query.trim(), store.id, affiliate)} target="_blank" rel="noopener noreferrer">
+              <a key={store.id} href={generateStoreSearchUrl(query.trim(), store.id, affiliate)} target="_blank" rel="noopener noreferrer" onClick={(event) => { event.preventDefault(); openExternal(generateStoreSearchUrl(query.trim(), store.id, affiliate)); }}>
                 {store.name}
               </a>
             ))}
