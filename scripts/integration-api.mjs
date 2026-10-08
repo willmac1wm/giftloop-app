@@ -639,6 +639,14 @@ await check("reminder claim sends once and opt-out cancels the rest", async () =
     "insert into notification_jobs (exchange_id, member_id, channel, kind, run_at) select $1, id, 'email', 'reminder', '2020-01-01T00:00:00Z' from members where exchange_id = $1 and email = 'bea@example.com'",
     [detail.exchange.id],
   );
+  const held = outbound.filter((row) => row.subject?.includes("Reminders")).length;
+  await reminders();
+  const early = outbound.filter((row) => row.subject?.includes("Reminders"));
+  assert(early.length === held, early);
+  const waiting = await admin.query("select status, run_at from notification_jobs where exchange_id = $1 and kind = 'reminder'", [detail.exchange.id]);
+  assert(waiting.rows[0].status === "pending" && new Date(waiting.rows[0].run_at).toISOString() === "2026-12-13T17:00:00.000Z", waiting.rows);
+  await admin.query("update exchanges set event_date = '2026-10-08' where id = $1", [detail.exchange.id]);
+  await admin.query("update notification_jobs set run_at = '2020-01-01T00:00:00Z' where exchange_id = $1", [detail.exchange.id]);
   const before = outbound.length;
   await Promise.all([reminders(), reminders()]);
   const sent = outbound.slice(before).filter((row) => row.channel === "email" && row.subject?.includes("Reminders"));
@@ -685,6 +693,7 @@ await check("quiet-hour reminder stays queued and a failed attempt does not dupl
   enableProviders();
   const detail = await createExchange("Retry", [{ name: "Cam", email: "cam@example.com" }]);
   await acceptGuests(detail, { "cam@example.com": "cam" });
+  await admin.query("update exchanges set event_date = '2026-10-08' where id = $1", [detail.exchange.id]);
   await admin.query(
     "insert into notification_jobs (exchange_id, member_id, channel, kind, run_at) select $1, id, 'email', 'reminder', '2020-01-01T00:00:00Z' from members where exchange_id = $1 and email = 'cam@example.com'",
     [detail.exchange.id],
