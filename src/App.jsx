@@ -437,7 +437,7 @@ export default function App() {
         {area === 'privacy' && (
           <PolicyScreen
             title="Privacy policy"
-            lede="Names in brackets are still placeholders."
+            lede="This page describes what GiftLoop stores."
             sections={privacySections}
             otherHref="/support/"
             otherLabel="Support"

@@ -1,11 +1,11 @@
-export const SUPPORT_EMAIL_PLACEHOLDER = "[Support email]";
-export const LEGAL_ENTITY_PLACEHOLDER = "[Legal entity name]";
-export const MAILING_ADDRESS_PLACEHOLDER = "[Mailing address]";
+export const SUPPORT_EMAIL = "essentialtradecontractors@gmail.com";
+export const LEGAL_ENTITY = "Essential Trade Contractors LLC";
+export const MAILING_ADDRESS = "130 County Road, Dennis, NJ 08210";
 
 export const privacySections = [
   {
     heading: "Who we are",
-    body: `${LEGAL_ENTITY_PLACEHOLDER} operates GiftLoop, a Secret Santa and gift-exchange app. ${MAILING_ADDRESS_PLACEHOLDER}. Contact ${SUPPORT_EMAIL_PLACEHOLDER}.`,
+    body: `${LEGAL_ENTITY} operates GiftLoop, a Secret Santa and gift-exchange app. ${MAILING_ADDRESS}. Contact ${SUPPORT_EMAIL}.`,
   },
   {
     heading: "What the app collects",
@@ -32,7 +32,7 @@ export const privacySections = [
 export const supportSections = [
   {
     heading: "Contact",
-    body: `Email ${SUPPORT_EMAIL_PLACEHOLDER}. ${LEGAL_ENTITY_PLACEHOLDER}, ${MAILING_ADDRESS_PLACEHOLDER}. Signed-in members can also send a note from Account.`,
+    body: `Email ${SUPPORT_EMAIL}. ${LEGAL_ENTITY}, ${MAILING_ADDRESS}. Signed-in members can also send a note from Account.`,
   },
   {
     heading: "What we can help with",

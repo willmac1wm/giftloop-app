@@ -7,7 +7,7 @@ The public pages reviewers can open before the app is approved are on the previe
 - Privacy: `https://giftloop-preview-423.netlify.app/privacy/`
 - Support: `https://giftloop-preview-423.netlify.app/support/`
 
-`[Legal entity name]`, `[Mailing address]`, and `[Support email]` in those pages are placeholders. Replace them in `src/content/policies.js`, run `node scripts/write-policy-pages.mjs`, and publish once before review.
+The operator on those pages is Essential Trade Contractors LLC, 130 County Road, Dennis, NJ 08210. The support email is essentialtradecontractors@gmail.com.
 
 ## 1. Reviewer account
 
@@ -59,7 +59,7 @@ Use the draft in the review notes Will keeps with the screenshots. Suggested sta
 - Subtitle: Secret Santa gift exchange
 - Category: Lifestyle
 - Age rating: 12+ because people can type their own wish lists and notes. There is no unrestricted browser, no in-app purchase, and no third-party sign-in.
-- Privacy policy URL: the `/privacy/` address above, after the placeholders are replaced.
+- Privacy policy URL: the `/privacy/` address above.
 - Support URL: the `/support/` address above.
 
 Review notes should include the reviewer email and password, and this sentence: sign-in is email and password only; store links open in Safari and are not purchases inside the app.

@@ -34,7 +34,7 @@ mkdirSync("public/privacy", { recursive: true });
 mkdirSync("public/support", { recursive: true });
 writeFileSync("public/privacy/index.html", page({
   title: "Privacy policy",
-  lede: "This page describes what GiftLoop stores. Names in brackets are still placeholders.",
+  lede: "This page describes what GiftLoop stores.",
   sections: privacySections,
   path: "/privacy/",
 }));
