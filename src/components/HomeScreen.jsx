@@ -155,9 +155,6 @@ export default function HomeScreen({
 
       <details className="home-stores">
         <summary>Holiday stores</summary>
-        <p className="home-note">
-          Store buttons below can include a referral code. Sample codes are not an approved affiliate account.
-        </p>
         <DealBanner />
       </details>
     </section>
