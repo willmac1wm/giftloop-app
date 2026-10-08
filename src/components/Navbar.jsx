@@ -75,7 +75,7 @@ export default function Navbar({
             <Gift size={20} />
           </span>
           <span>
-            <span className="brand-name">GiftLoop</span>
+            <span className="brand-name">Secret Gifter</span>
             <span className="brand-tag">Christmas Secret Santa</span>
           </span>
         </button>

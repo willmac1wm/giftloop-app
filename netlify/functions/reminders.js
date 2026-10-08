@@ -8,10 +8,10 @@ import { providerEnv, readProviders, sendEmail, sendSms } from "../../src/server
 import { deliveryDecision } from "../../src/server/notifyPolicy.js";
 
 function reminderText(exchange, origin, kind) {
-  if (kind === "reunion") return `Ready to plan another ${exchange.title || "gift exchange"}?\n\nReview your traditions and refresh your wishes on GiftLoop:\n${origin}/\n\nYou requested this planning reminder. No guests have been invited.`;
+  if (kind === "reunion") return `Ready to plan another ${exchange.title || "gift exchange"}?\n\nReview your traditions and refresh your wishes on Secret Gifter:\n${origin}/\n\nYou requested this planning reminder. No guests have been invited.`;
   const url = `${origin}/?view=assignment&exchange=${exchange.id}`;
   if (exchange.drawnAt) return assignmentNotice({ title: exchange.title, url });
-  return `Reminder for ${exchange.title || "Secret Santa"}.\n\nOpen GiftLoop:\n${url}\n\nThis message does not include anyone's assignment.`;
+  return `Reminder for ${exchange.title || "Secret Santa"}.\n\nOpen Secret Gifter:\n${url}\n\nThis message does not include anyone's assignment.`;
 }
 
 export default async function handler() {

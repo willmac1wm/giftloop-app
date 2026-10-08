@@ -13,7 +13,7 @@ This project’s Netlify team is billed for production publishes and for databas
 
 ## App Store
 
-`APP_STORE_CHECKLIST.md` is the path Will runs on a Mac. The `ios/` project is the Capacitor app. Do not add Google, Facebook, or other social sign-in. Email through Netlify Identity is the only account provider. Store links open outside the app and are not purchases inside GiftLoop.
+`APP_STORE_CHECKLIST.md` is the path Will runs on a Mac. The `ios/` project is the Capacitor app. Do not add Google, Facebook, or other social sign-in. Email through Netlify Identity is the only account provider. Store links open outside the app and are not purchases inside Secret Gifter.
 
 ## Product limits that are still true
 

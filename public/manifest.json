@@ -1,6 +1,6 @@
 {
-  "name": "GiftLoop — Secret Santa",
-  "short_name": "GiftLoop",
+  "name": "Secret Gifter — Gift Exchange",
+  "short_name": "Secret Gifter",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#070b14",

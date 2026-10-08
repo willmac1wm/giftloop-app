@@ -5,7 +5,7 @@ export const MAILING_ADDRESS = "130 County Road, Dennis, NJ 08210";
 export const privacySections = [
   {
     heading: "Who we are",
-    body: `${LEGAL_ENTITY} operates GiftLoop, a Secret Santa and gift-exchange app. ${MAILING_ADDRESS}. Contact ${SUPPORT_EMAIL}.`,
+    body: `${LEGAL_ENTITY} operates Secret Gifter, a Secret Santa and gift-exchange app. ${MAILING_ADDRESS}. Contact ${SUPPORT_EMAIL}.`,
   },
   {
     heading: "What the app collects",
@@ -17,7 +17,7 @@ export const privacySections = [
   },
   {
     heading: "Who else processes it",
-    body: "Netlify hosts the site, accounts, and database. If email or text is turned on, Resend or Twilio delivers those messages. Apple delivers local reminders on the iPhone app. Retailers receive the store visit when someone leaves GiftLoop to shop.",
+    body: "Netlify hosts the site, accounts, and database. If email or text is turned on, Resend or Twilio delivers those messages. Apple delivers local reminders on the iPhone app. Retailers receive the store visit when someone leaves Secret Gifter to shop.",
   },
   {
     heading: "How long it stays",
@@ -40,6 +40,6 @@ export const supportSections = [
   },
   {
     heading: "Shopping",
-    body: "Store links may include a referral code. GiftLoop does not sell digital goods and does not take payment inside the app. A purchase happens on the retailer’s site, in the browser.",
+    body: "Store links may include a referral code. Secret Gifter does not sell digital goods and does not take payment inside the app. A purchase happens on the retailer’s site, in the browser.",
   },
 ];

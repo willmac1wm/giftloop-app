@@ -25,8 +25,8 @@ export function dealLinks(config = DEFAULT_AFFILIATE_CONFIG, now = new Date()) {
     live,
     title: live ? 'Prime Big Deal Days is here' : 'Holiday deals are here',
     lede: live
-      ? 'Amazon’s October sale is open through October 7. Store buttons use Gift Loop referral links.'
-      : 'Shop the season. Store buttons use Gift Loop referral links.',
+      ? 'Amazon’s October sale is open through October 7. Store buttons use Secret Gifter referral links.'
+      : 'Shop the season. Store buttons use Secret Gifter referral links.',
     stores: [
       {
         id: 'amazon',

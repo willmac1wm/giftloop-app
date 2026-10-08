@@ -1,8 +1,8 @@
-# GiftLoop
+# Secret Gifter
 
-GiftLoop is a Secret Santa app. An organizer can draw names on this device with no account. A second path, still being connected, stores an exchange in Netlify Database for people who sign in.
+Secret Gifter is a Secret Santa app. An organizer can draw names on this device with no account. A second path, still being connected, stores an exchange in Netlify Database for people who sign in.
 
-Guest reveal links are encoded in the URL. Anyone who receives the link can open it. That is not encryption, and it is not limited to the intended person. A saved exchange uses a different link, `?view=assignment&exchange=`, which asks the signed-in participant and does not put the recipient’s name in the URL. The isolated preview site below has Identity and the database turned on. Netlify sends the account-confirmation email. GiftLoop’s own invitation and reminder email still needs Resend.
+Guest reveal links are encoded in the URL. Anyone who receives the link can open it. That is not encryption, and it is not limited to the intended person. A saved exchange uses a different link, `?view=assignment&exchange=`, which asks the signed-in participant and does not put the recipient’s name in the URL. The isolated preview site below has Identity and the database turned on. Netlify sends the account-confirmation email. Secret Gifter’s own invitation and reminder email still needs Resend.
 
 Paid plans are separate from permissions and are not part of this app yet.
 
@@ -12,9 +12,9 @@ These run in the browser with `npm run dev`. They do not need a database.
 
 - Secret Santa setup on this device: names, paste-in import, wish lists, exclusions, occasion, date, budget, and the draw. Data is saved in `localStorage` under `giftloop_secretsanta_v2`.
 - The draw is `src/utils/shuffle.js`. Nobody is paired with themselves, exclusions are directional, and the default is one giving circle. Two people who exclude each other cannot be drawn.
-- After the draw, each person gets a reveal link. **Email link** and **Text link** open the organizer’s own mail and messages apps. Copy, QR, print, WhatsApp, and the device share sheet are there too. Gift Loop does not send those messages.
+- After the draw, each person gets a reveal link. **Email link** and **Text link** open the organizer’s own mail and messages apps. Copy, QR, print, WhatsApp, and the device share sheet are there too. Secret Gifter does not send those messages.
 - The reveal page reads `?view=reveal&t=`. The token contains the giver, the receiver, and the wish list.
-- Shopping uses Gift Loop referral codes: Amazon, Walmart, Target, Bass Pro Shops, Cabela's, and Best Buy. **Affiliate tags** are an administrator control. They accept a code or a full affiliate link and store it on this device. Members do not see that control. Shopping actions say when a link may include a referral code. The deal banner, shopping-center doors, and gift finder use those codes.
+- Shopping uses Secret Gifter referral codes: Amazon, Walmart, Target, Bass Pro Shops, Cabela's, and Best Buy. **Affiliate tags** are an administrator control. They accept a code or a full affiliate link and store it on this device. Members do not see that control. Shopping actions say when a link may include a referral code. The deal banner, shopping-center doors, and gift finder use those codes.
 - The phone browser can use the site. `index.html` has a web manifest and Apple web-app tags. An iOS Capacitor project is in `ios/`. It has not been archived or submitted. `APP_STORE_CHECKLIST.md` is the Mac path for that.
 
 ## Partially connected
@@ -27,7 +27,7 @@ These files exist. They do not finish the job in local Vite, because Netlify Ide
 - **Account assignments** use `?view=assignment&exchange=`. The page asks the matching signed-in member for their recipient. The link itself does not include the name. Older guest links that already contain a name stay readable by anyone who has them.
 - **Wish lists** can be saved on the member account, shared with an exchange, and reserved by the giver. The owner’s list does not show who reserved an item. Opening a shop link does not mark it purchased.
 - **Email and text** still need Resend and Twilio environment variables on a Netlify deploy. A provider accepting a message is stored as accepted, not delivered. Signed Twilio and Resend callbacks can mark it delivered or failed. Those callbacks have been checked locally with test signatures, not with live provider traffic. Texts go only to someone who opted in, and STOP cancels later texts. Reminders are rows in the database and a scheduled function sends due rows. Quiet hours (9pm–8am in the exchange timezone) leave the notice queued until morning. Cancellation and opt-out cancel pending rows. This has not been tried with live provider credentials or a real phone.
-- **Wish-list messages** are GiftLoop links (`?view=assignment&exchange=`), not product URLs. The Shop button asks the server for that retailer’s link when the giver taps it. Sample tags in the repo are not proof of an approved affiliate account.
+- **Wish-list messages** are Secret Gifter links (`?view=assignment&exchange=`), not product URLs. The Shop button asks the server for that retailer’s link when the giver taps it. Sample tags in the repo are not proof of an approved affiliate account.
 - **Shopping links** pasted onto a wish are checked before they are stored: web links only, known retailer domains, short links left unresolved, and private network addresses rejected. Retailers with a tag in code get that tag on the shop link. Other stores keep the ordinary link. An administrator screen can store merchant rules; those rules have not been verified with a live affiliate program.
 - Database tables cover exchanges, members, assignments, deliveries, exclusions, wish lists, wish items, reservations, notification preferences, reminders, tickets, and merchants (`db/schema.js`). Migrations are the folders under `netlify/database/migrations/`. Netlify applies them on deploy. `npm run db:migrate` is only for a local Netlify database. `npm run test:integration` runs the API against a local Postgres database and does not call Resend or Twilio.
 

@@ -1,6 +1,6 @@
 {
-  "appId": "com.giftloop.app",
-  "appName": "GiftLoop",
+  "appId": "com.thesecretgifter.app",
+  "appName": "Secret Gifter",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "ios": {

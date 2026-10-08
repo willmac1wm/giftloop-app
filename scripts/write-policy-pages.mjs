@@ -19,7 +19,7 @@ function page({ title, lede, sections, path }) {
 </head>
 <body>
   <main>
-    <p><a href="/">GiftLoop</a></p>
+    <p><a href="/">Secret Gifter</a></p>
     <h1>${title}</h1>
     <p>${lede}</p>
     ${blocks}
@@ -34,13 +34,13 @@ mkdirSync("public/privacy", { recursive: true });
 mkdirSync("public/support", { recursive: true });
 writeFileSync("public/privacy/index.html", page({
   title: "Privacy policy",
-  lede: "This page describes what GiftLoop stores.",
+  lede: "This page describes what Secret Gifter stores.",
   sections: privacySections,
   path: "/privacy/",
 }));
 writeFileSync("public/support/index.html", page({
   title: "Support",
-  lede: "This is the public contact page for GiftLoop.",
+  lede: "This is the public contact page for Secret Gifter.",
   sections: supportSections,
   path: "/support/",
 }));

@@ -18,7 +18,7 @@ export const CENTER_STORES = [
   { id: 'bestbuy', name: 'Best Buy', photo: '/shopping/photo-play.jpg', position: 'center' },
 ];
 
-/** Query keys Gift Loop reads when a full affiliate link is pasted into a store field. */
+/** Query keys Secret Gifter reads when a full affiliate link is pasted into a store field. */
 export const AFFILIATE_PARAM_KEYS = {
   amazon: ['tag'],
   walmart: ['wmlspartner', 'affiliate_id'],
@@ -61,7 +61,7 @@ export function readAffiliateValue(storeId, raw) {
   }
 }
 
-/** True while every store still has the built-in Gift Loop sample code. */
+/** True while every store still has the built-in Secret Gifter sample code. */
 export function usesSampleAffiliateCodes(config = DEFAULT_AFFILIATE_CONFIG) {
   return SAMPLE_CODE_KEYS.every((key) => config?.[key] === DEFAULT_AFFILIATE_CONFIG[key]);
 }

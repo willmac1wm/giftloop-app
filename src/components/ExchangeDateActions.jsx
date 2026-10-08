@@ -17,9 +17,9 @@ export default function ExchangeDateActions({ id, title, date }) {
         type="button"
         className="btn btn-secondary text-xs"
         onClick={() => run(() => addExchangeToCalendar({
-          title: title || "GiftLoop exchange",
+          title: title || "Secret Gifter exchange",
           date,
-          details: "GiftLoop exchange date. The file does not include who anyone is buying for.",
+          details: "Secret Gifter exchange date. The file does not include who anyone is buying for.",
         }))}
       >
         Add date to calendar

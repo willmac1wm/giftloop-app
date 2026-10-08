@@ -145,7 +145,7 @@ export default function AffiliateSettingsModal({ isOpen, onClose, onConfigSaved 
               <span className="badge badge-gold text-[10px]">Your codes</span>
             </div>
             <p className="text-xs text-slate-400 mt-1">
-              Paste a partner code, or a full affiliate link, for Amazon, Walmart, Target, Bass Pro Shops, Cabela's, and Best Buy. Gift Loop pulls the code out of the link. Codes stay on this device and are copied into reveal links the next time you share them.
+              Paste a partner code, or a full affiliate link, for Amazon, Walmart, Target, Bass Pro Shops, Cabela's, and Best Buy. Secret Gifter pulls the code out of the link. Codes stay on this device and are copied into reveal links the next time you share them.
             </p>
           </div>
         </div>

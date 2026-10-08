@@ -1,11 +1,13 @@
 # App Store checklist
 
-GiftLoop is not submitted. This is the path on a Mac with Xcode and the Apple Developer account Will already has. Do not put the reviewer password, Resend keys, Twilio keys, or `NETLIFY_DB_URL` in git or in this file.
+Secret Gifter is not submitted. This is the path on a Mac with Xcode and the Apple Developer account Will already has. Do not put the reviewer password, Resend keys, Twilio keys, or `NETLIFY_DB_URL` in git or in this file.
 
-The public pages reviewers can open before the app is approved are on the preview site:
+The public pages for the listing are:
 
-- Privacy: `https://giftloop-preview-423.netlify.app/privacy/`
-- Support: `https://giftloop-preview-423.netlify.app/support/`
+- Privacy: `https://thesecretgifter.com/privacy/`
+- Support: `https://thesecretgifter.com/support/`
+
+TheSecretGifter.com is not connected yet. Until DNS points at this project, those same pages are on the current preview site, `giftloop-preview-423`.
 
 The operator on those pages is Essential Trade Contractors LLC, 130 County Road, Dennis, NJ 08210. The support email is essentialtradecontractors@gmail.com.
 
@@ -33,7 +35,7 @@ npx cap sync ios
 open ios/App/App.xcodeproj
 ```
 
-Open `ios/App/App.xcodeproj`. Capacitor 8 added the iOS plugins through Swift Package Manager (`ios/App/CapApp-SPM/Package.swift`), so this project has no CocoaPods workspace. The bundle id is `com.giftloop.app`. The display name is GiftLoop. The version is `1.0.0` and the build number is `1` until Will raises them for a later upload.
+Open `ios/App/App.xcodeproj`. Capacitor 8 added the iOS plugins through Swift Package Manager (`ios/App/CapApp-SPM/Package.swift`), so this project has no CocoaPods workspace. The bundle id is `com.thesecretgifter.app`. The display name is Secret Gifter. The version is `1.0.0` and the build number is `1` until Will raises them for a later upload.
 
 ## 3. Signing
 
@@ -55,8 +57,9 @@ Open `ios/App/App.xcodeproj`. Capacitor 8 added the iOS plugins through Swift Pa
 
 Use the draft in the review notes Will keeps with the screenshots. Suggested starting text:
 
-- Name: GiftLoop
-- Subtitle: Secret Santa gift exchange
+- Name: Secret Gifter: Gift Exchange
+- Subtitle: Secret Santa wish lists
+- Keywords: secret santa,christmas,wishlist,white elephant,holiday,draw names,family
 - Category: Lifestyle
 - Age rating: 12+ because people can type their own wish lists and notes. There is no unrestricted browser, no in-app purchase, and no third-party sign-in.
 - Privacy policy URL: the `/privacy/` address above.

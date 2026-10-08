@@ -35,14 +35,14 @@ export async function openExternal(url) {
 
 export function calendarFile({ title, date, details }) {
   const day = String(date || "").replace(/-/g, "");
-  const safeTitle = String(title || "GiftLoop exchange").replace(/[\r\n,;]/g, " ");
+  const safeTitle = String(title || "Secret Gifter exchange").replace(/[\r\n,;]/g, " ");
   const safeDetails = String(details || "Gift exchange").replace(/[\r\n]/g, " ");
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//GiftLoop//Exchange//EN",
+    "PRODID:-//Secret Gifter//Exchange//EN",
     "BEGIN:VEVENT",
-    `UID:${day}-${safeTitle.slice(0, 24).replace(/\W/g, "")}@giftloop.app`,
+    `UID:${day}-${safeTitle.slice(0, 24).replace(/\W/g, "")}@thesecretgifter.com`,
     `DTSTAMP:${day}T150000Z`,
     `DTSTART;VALUE=DATE:${day}`,
     `SUMMARY:${safeTitle}`,
@@ -61,12 +61,12 @@ export async function addExchangeToCalendar({ title, date, details }) {
     const { Directory, Encoding, Filesystem } = await import("@capacitor/filesystem");
     const { Share } = await import("@capacitor/share");
     await Filesystem.writeFile({
-      path: "giftloop-exchange.ics",
+      path: "secret-gifter-exchange.ics",
       data: ics,
       directory: Directory.Cache,
       encoding: Encoding.UTF8,
     });
-    const file = await Filesystem.getUri({ path: "giftloop-exchange.ics", directory: Directory.Cache });
+    const file = await Filesystem.getUri({ path: "secret-gifter-exchange.ics", directory: Directory.Cache });
     await Share.share({
       title: title || "Gift exchange",
       text: details || "Gift exchange date",
@@ -79,7 +79,7 @@ export async function addExchangeToCalendar({ title, date, details }) {
   const href = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = href;
-  link.download = "giftloop-exchange.ics";
+  link.download = "secret-gifter-exchange.ics";
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -104,12 +104,12 @@ export async function scheduleLocalReminder({ id, title, date }) {
   if (when.getTime() <= Date.now()) return { scheduled: false, reason: "That reminder time has already passed." };
   const { LocalNotifications } = await import("@capacitor/local-notifications");
   const permission = await LocalNotifications.requestPermissions();
-  if (permission.display !== "granted") return { scheduled: false, reason: "Notifications are off for GiftLoop." };
+  if (permission.display !== "granted") return { scheduled: false, reason: "Notifications are off for Secret Gifter." };
   await LocalNotifications.schedule({
     notifications: [{
       id: notificationId(id || title),
-      title: "GiftLoop reminder",
-      body: `${title || "Your exchange"} is coming up. Open GiftLoop. This notice does not name a recipient.`,
+      title: "Secret Gifter reminder",
+      body: `${title || "Your exchange"} is coming up. Open Secret Gifter. This notice does not name a recipient.`,
       schedule: { at: when },
     }],
   });

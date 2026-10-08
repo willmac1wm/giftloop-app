@@ -33,7 +33,7 @@ export function invitationNotice({ title, url }) {
 }
 
 export function wishListNotice({ title, url }) {
-  return `A wish list for ${title || "Secret Santa"} is ready.\n\nOpen it in GiftLoop. Later edits stay on this page:\n${url}\n\nThis message does not include a store link or an assignment.`;
+  return `A wish list for ${title || "Secret Santa"} is ready.\n\nOpen it in Secret Gifter. Later edits stay on this page:\n${url}\n\nThis message does not include a store link or an assignment.`;
 }
 
 export function wishLines(value) {

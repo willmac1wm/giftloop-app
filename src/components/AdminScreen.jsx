@@ -329,8 +329,8 @@ export default function AdminScreen({ user, onNeedAccount, initialExchangeId = "
               )}
             </details>
             <details className="rounded-xl border border-white/10 p-3">
-              <summary className="cursor-pointer text-sm text-white">Messages GiftLoop sends</summary>
-              <p className="text-xs text-slate-400 mt-2">These go out through GiftLoop. They are separate from links you send with your own mail or messages app.</p>
+              <summary className="cursor-pointer text-sm text-white">Messages Secret Gifter sends</summary>
+              <p className="text-xs text-slate-400 mt-2">These go out through Secret Gifter. They are separate from links you send with your own mail or messages app.</p>
             <div className="flex flex-wrap gap-2 mt-3">
               <button type="button" className="btn btn-secondary text-xs" onClick={() => notify("email", "invite")} disabled={busy || !providers?.emailReady}>
                 <Mail size={14} /> Email invitations

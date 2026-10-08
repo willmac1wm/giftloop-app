@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>GiftLoop</string>
+        <string>Secret Gifter</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -69,8 +69,8 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCalendarsUsageDescription</key>
-	<string>GiftLoop adds the exchange date to your calendar. The event does not include who anyone is buying for.</string>
+	<string>Secret Gifter adds the exchange date to your calendar. The event does not include who anyone is buying for.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>GiftLoop adds the exchange date to your calendar. The event does not include who anyone is buying for.</string>
+	<string>Secret Gifter adds the exchange date to your calendar. The event does not include who anyone is buying for.</string>
 </dict>
 </plist>

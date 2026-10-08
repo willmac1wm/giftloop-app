@@ -20,14 +20,14 @@ export default function IosInstallModal({ isOpen, onClose }) {
 
         {/* App Icon preview */}
         <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-2xl mb-4 border-2 border-white/20">
-          <img src="/apple-touch-icon.png" alt="GiftLoop iOS Icon" className="w-full h-full object-cover" />
+          <img src="/apple-touch-icon.png" alt="Secret Gifter iOS icon" className="w-full h-full object-cover" />
         </div>
 
         <h3 className="text-xl font-bold font-heading text-white mb-1">
           Install on Your iPhone
         </h3>
         <p className="text-xs text-slate-300 mb-5">
-          Run GiftLoop as a standalone iOS app without Safari toolbars.
+          Run Secret Gifter as a standalone iOS app without Safari toolbars.
         </p>
 
         {/* 3 Step Guide */}
@@ -63,7 +63,7 @@ export default function IosInstallModal({ isOpen, onClose }) {
             <div>
               <p className="text-white font-semibold">Tap "Add"</p>
               <p className="text-slate-400 mt-0.5">
-                Confirm by tapping <strong>Add</strong> in the top right. GiftLoop will appear right on your iPhone home screen!
+                Confirm by tapping <strong>Add</strong> in the top right. Secret Gifter will appear right on your iPhone home screen!
               </p>
             </div>
           </div>

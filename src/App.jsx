@@ -437,7 +437,7 @@ export default function App() {
         {area === 'privacy' && (
           <PolicyScreen
             title="Privacy policy"
-            lede="This page describes what GiftLoop stores."
+            lede="This page describes what Secret Gifter stores."
             sections={privacySections}
             otherHref="/support/"
             otherLabel="Support"
@@ -494,7 +494,7 @@ export default function App() {
 
       <footer className="z-10 py-6 border-t border-white/5 text-center text-xs text-slate-400 no-print hidden sm:block">
         <div className="max-w-3xl mx-auto px-4">
-          GiftLoop · Christmas Secret Santa
+          Secret Gifter · Christmas Secret Santa
         </div>
       </footer>
 

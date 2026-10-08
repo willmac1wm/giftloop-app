@@ -70,7 +70,7 @@ export default function RevealLinksPanel({ event, onPreviewReveal, onUpdateEvent
   return (
     <div className="space-y-4">
       <p className="privacy-note" role="note">
-        Each link is a guest reveal. Anyone who receives it can open it and see that person&apos;s match. Email, text, copy, QR, and print open your own apps. GiftLoop does not send these links.
+        Each link is a guest reveal. Anyone who receives it can open it and see that person&apos;s match. Email, text, copy, QR, and print open your own apps. Secret Gifter does not send these links.
       </p>
 
       <div className="space-y-3">
@@ -128,7 +128,7 @@ export default function RevealLinksPanel({ event, onPreviewReveal, onUpdateEvent
                 </summary>
                 <div className="share-menu-list">
                   <p className="privacy-note" role="note">
-                    This guest link is for {match.giver.name}. Anyone who receives it can open it and see their match. The choices below open your own apps. GiftLoop does not send this link.
+                    This guest link is for {match.giver.name}. Anyone who receives it can open it and see their match. The choices below open your own apps. Secret Gifter does not send this link.
                   </p>
                   <a href={mailLink}><Mail size={15} /> Email — opens your mail app</a>
                   <a href={textLink}><Send size={15} /> Text — opens your messages app</a>

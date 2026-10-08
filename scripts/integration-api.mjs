@@ -475,7 +475,7 @@ await check("shared wish lists keep ownership, edits, and reservation privacy", 
 
 function enableProviders() {
   env.RESEND_API_KEY = "test-resend";
-  env.EMAIL_FROM = "GiftLoop <gifts@example.com>";
+  env.EMAIL_FROM = "Secret Gifter <gifts@example.com>";
   env.TWILIO_ACCOUNT_SID = "AC_test";
   env.TWILIO_AUTH_TOKEN = "twilio-test-token";
   env.TWILIO_FROM_NUMBER = "+15555550000";
@@ -514,7 +514,7 @@ await check("quiet hours defer without sending", async () => {
   assert(jobs.rows.length === 1 && jobs.rows[0].status === "pending" && new Date(jobs.rows[0].run_at) > new RealDate(QUIET), jobs.rows);
 });
 
-await check("wish-list email and text use a GiftLoop link", async () => {
+await check("wish-list email and text use a Secret Gifter link", async () => {
   enableProviders();
   resendMode = "ok";
   smsMode = "ok";
