@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import confetti from 'canvas-confetti';
+import { celebrateUnwrap } from '../utils/christmasConfetti';
 import { Gift, Sparkles, CheckCircle2, Lock, Calendar, DollarSign, Heart, Ban, ArrowLeft, BookmarkCheck } from 'lucide-react';
 import { sound } from '../utils/audio';
-import ShopForMatch from './ShopForMatch';
+import DealBanner from './DealBanner';
 
 export default function SecretRevealView({ payload, onBackToOrganizer }) {
   const [unwrapped, setUnwrapped] = useState(false);
@@ -13,6 +13,7 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
     giverName = 'Guest',
     receiverName = 'Special Someone',
     wishlist = [],
+    listTitle = '',
     likes = '',
     dislikes = '',
     budget = '$30 - $40',
@@ -48,30 +49,7 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
     sound.playUnwrap();
     setUnwrapped(true);
 
-    // Fire festive holiday confetti
-    confetti({
-      particleCount: 120,
-      spread: 90,
-      origin: { y: 0.6 },
-      colors: ['#10b981', '#f43f5e', '#fbbf24', '#ffffff', '#38bdf8'],
-    });
-
-    setTimeout(() => {
-      confetti({
-        particleCount: 70,
-        angle: 60,
-        spread: 60,
-        origin: { x: 0 },
-        colors: ['#10b981', '#fbbf24'],
-      });
-      confetti({
-        particleCount: 70,
-        angle: 120,
-        spread: 60,
-        origin: { x: 1 },
-        colors: ['#f43f5e', '#ffffff'],
-      });
-    }, 350);
+    celebrateUnwrap();
   };
 
   return (
@@ -82,7 +60,7 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
           className="fixed top-5 left-5 z-20 btn btn-secondary text-xs py-2 px-3.5 backdrop-blur-md"
         >
           <ArrowLeft size={16} />
-          Back to Organizer Hub
+          Back to the exchange
         </button>
       )}
 
@@ -123,7 +101,7 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
             Tap to Open Your Secret Gift
           </h2>
           <p className="text-sm text-slate-300 mb-6 max-w-xs">
-            Only you can see who you drew. Click to untie the ribbon and reveal your recipient!
+            Unwrap to see the name stored in this link.
           </p>
 
           <button 
@@ -135,7 +113,7 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
           </button>
 
           <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-6">
-            <Lock size={13} /> Encrypted client-side secret
+            <Lock size={13} /> Anyone with this link can open it
           </div>
         </div>
       ) : (
@@ -164,14 +142,19 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
             </div>
           </div>
 
-          <div className="py-5 space-y-4">
-            <ShopForMatch
-              receiverName={receiverName}
-              budget={budget}
-              likes={likes}
-              wishlist={wishlist}
-              affiliate={payload?.affiliate}
-            />
+          <div className="py-5 space-y-4 text-left">
+            <div>
+              <h3 className="text-xs uppercase font-bold tracking-wider text-amber-400 mb-1.5">
+                Wishlist{listTitle ? ` · ${listTitle}` : ''}
+              </h3>
+              {wishTexts(wishlist).length === 0 ? (
+                <p className="text-sm text-slate-300">No wishes yet.</p>
+              ) : (
+                <ul className="text-sm text-slate-200 space-y-1 list-disc pl-5">
+                  {wishTexts(wishlist).map((line) => <li key={line}>{line}</li>)}
+                </ul>
+              )}
+            </div>
 
             {likes && (
               <div>
@@ -238,6 +221,19 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
           </div>
         </div>
       )}
+
+      {unwrapped && (
+        <div className="w-full max-w-lg mt-4">
+          <DealBanner affiliate={payload?.affiliate} />
+        </div>
+      )}
     </div>
   );
+}
+
+function wishTexts(wishlist) {
+  return (Array.isArray(wishlist) ? wishlist : [])
+    .map((item) => (item && typeof item === 'object' ? (item.title || item.url || '') : String(item || '')))
+    .map((line) => line.trim())
+    .filter(Boolean);
 }

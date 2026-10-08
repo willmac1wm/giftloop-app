@@ -78,14 +78,14 @@ export const initialWhiteElephantEvent = {
     { id: 'we6', name: 'Oliver Thorne', order: 6 },
   ],
   currentTurn: 1,
-  gameStage: 'setup', // 'setup' | 'in_progress' | 'completed'
+  gameStage: 'setup',
   gifts: [],
   logs: [],
 };
 
 export const curatedGiftIdeas = [
   {
-    category: 'White Elephant Favorites (Gag & Fun)',
+    category: 'Playful Gifts',
     items: [
       { name: 'Burrito Swaddle Blanket', price: '$22', desc: 'Hilarious realistic giant tortilla plush blanket' },
       { name: 'Desktop Miniature Wacky Flailing Inflatable Tube Guy', price: '$12', desc: 'Instant office morale booster' },

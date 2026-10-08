@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import confetti from 'canvas-confetti';
+import { celebrateDraw } from '../utils/christmasConfetti';
 import {
   AlertCircle,
   ArrowRight,
@@ -31,14 +31,21 @@ import {
 } from '../data/exchangePresets';
 import {
   WIZARD_STEPS,
+  applyImportedPeople,
+  parsePeopleList,
   createNameRow,
   materializeParticipants,
   pruneExclusions,
 } from '../data/eventState';
 import RevealLinksPanel from './RevealLinksPanel';
+import GiftFinder from './GiftFinder';
+import ExchangeWishLinks from './ExchangeWishLinks';
+import { organizerMatch } from '../exchange/progress';
+import { buildRevealPayload } from '../utils/revealLink';
 
 const PROGRESS_STEPS = [
   { id: 'names', label: 'Names' },
+  { id: 'wishes', label: 'Wishes' },
   { id: 'exclusions', label: 'Exclusions' },
   { id: 'details', label: 'Details' },
   { id: 'message', label: 'Message' },
@@ -73,7 +80,7 @@ export default function CreateExchangeWizard({
     if (to > stepIndex(event.wizardFurthest || step) && to > from + 1) return;
 
     let next = { ...event, wizardStep: target };
-    if (step === 'names' && target !== 'names' && target !== 'start') {
+    if (stepIndex(target) > stepIndex('wishes')) {
       const participants = materializeParticipants(event);
       if ((event.organizerName || '').trim().length === 0 || participants.length < 2) return;
       const exclusions = pruneExclusions(event.exclusions, participants);
@@ -125,7 +132,7 @@ export default function CreateExchangeWizard({
     sound.playChime();
     const prepared = withDerivedTitle({
       ...event,
-      participants: event.participants?.length ? event.participants : materializeParticipants(event),
+      participants: materializeParticipants(event),
     });
     const result = generateSecretSantaDraw(prepared.participants, prepared.exclusions || [], true);
     if (!result.success) {
@@ -144,16 +151,11 @@ export default function CreateExchangeWizard({
       wizardFurthest: 'share',
       inviteMessage: prepared.inviteMessageEdited ? prepared.inviteMessage : defaultInviteMessage(prepared),
     });
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#10b981', '#f43f5e', '#fbbf24', '#ffffff'],
-    });
+    celebrateDraw();
   };
 
   return (
-    <div className={`wizard-shell ${step === 'share' ? 'wizard-shell-wide' : ''}`}>
+    <div className={`wizard-shell ${step === 'share' || step === 'wishes' ? 'wizard-shell-wide' : ''}`}>
       {step !== 'start' && (
         <ol className="wizard-progress" aria-label="Create exchange steps">
           {PROGRESS_STEPS.map((item) => {
@@ -175,6 +177,17 @@ export default function CreateExchangeWizard({
         </ol>
       )}
 
+      {step !== 'start' && (
+        <ExchangeWishLinks
+          event={event}
+          onOpenMine={() => goToStep('wishes')}
+          onPreview={() => {
+            const match = organizerMatch(event);
+            if (match) onPreviewReveal(buildRevealPayload(event, match));
+          }}
+        />
+      )}
+
       {step === 'start' && (
         <StartStep
           onStart={() => {
@@ -194,13 +207,22 @@ export default function CreateExchangeWizard({
         />
       )}
 
+      {step === 'wishes' && (
+        <WishesStep
+          event={event}
+          patch={patch}
+          onBack={() => goToStep('names')}
+          onContinue={() => continueFrom('wishes')}
+        />
+      )}
+
       {step === 'exclusions' && (
         <ExclusionsStep
           event={event}
           patch={patch}
           picker={picker}
           setPicker={setPicker}
-          onBack={() => goToStep('names')}
+          onBack={() => goToStep('wishes')}
           onContinue={() => continueFrom('exclusions')}
         />
       )}
@@ -298,20 +320,14 @@ function StartStep({ onStart, onLoadSample }) {
       <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/15 text-emerald-300 flex items-center justify-center mb-4">
         <Gift size={28} />
       </div>
-      <h2 className="text-3xl font-bold font-heading text-white">Start a Secret Santa</h2>
+      <h2 className="text-3xl font-bold font-heading text-white">Create an exchange</h2>
         <p className="text-sm text-slate-300 mt-2 mb-5 max-w-md mx-auto">
-          Add your group with the email or mobile you’ll use to send each private link.
-          No Gift Loop account. Your mail and messages apps do the sending.
+          Add your group, then draw names. No account needed. Names stay on this device, and exclusions come before the draw.
         </p>
       <button type="button" onClick={onStart} className="btn btn-primary text-base px-5 py-3">
         <Sparkles size={18} />
-        Start a Secret Santa
+        Continue
       </button>
-      <ul className="wizard-points">
-        <li>Names, budget, and the draw never leave this browser</li>
-        <li>Exclusions are a step of their own, before anyone is paired</li>
-        <li>Email or text each private link from your own phone</li>
-      </ul>
       {onLoadSample && (
         <button
           type="button"
@@ -330,9 +346,24 @@ function StartStep({ onStart, onLoadSample }) {
 }
 
 function NamesStep({ event, patch, onBack, onContinue }) {
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importError, setImportError] = useState('');
   const organizerReady = (event.organizerName || '').trim().length > 0;
   const previewCount = materializeParticipants(event).length;
   const canContinue = organizerReady && previewCount >= 2;
+
+  const commitImport = () => {
+    const people = parsePeopleList(importText);
+    if (people.length < 2) {
+      setImportError('Add at least two lines. Put yourself first, then one name and email per line.');
+      return;
+    }
+    sound.playClick();
+    patch(applyImportedPeople(event, people));
+    setImportOpen(false);
+    setImportError('');
+  };
 
   const updateRow = (id, partial) => {
     patch({
@@ -343,7 +374,7 @@ function NamesStep({ event, patch, onBack, onContinue }) {
   return (
     <StepCard
       title="Who is drawing names?"
-      lede="Add an email or mobile for each person. That’s how you’ll send their private link after the draw. Nothing is sent yet."
+      lede="Add a name plus an email or mobile. They fill in their own wishlist when they accept. Nothing is sent yet."
     >
       <div className="friend-card mb-4">
         <label className="text-xs font-semibold uppercase tracking-wider text-slate-400" htmlFor="organizer-name">
@@ -389,10 +420,48 @@ function NamesStep({ event, patch, onBack, onContinue }) {
         </label>
       </div>
 
-      <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1">
-        <Users size={13} className="text-emerald-400" />
-        Friends
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+          <Users size={13} className="text-emerald-400" />
+          Friends
+        </div>
+        <button
+          type="button"
+          className="btn btn-secondary text-xs py-1.5 px-2.5"
+          onClick={() => {
+            sound.playClick();
+            setImportOpen((open) => !open);
+            setImportError('');
+          }}
+        >
+          Import
+        </button>
       </div>
+      {importOpen && (
+        <div className="friend-card mb-3">
+          <p className="text-sm text-slate-200 font-semibold">Import names and email addresses</p>
+          <p className="text-xs text-slate-400">
+            One person per line. Put yourself first. Email and mobile are optional.
+          </p>
+          <textarea
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
+            rows={6}
+            className="glass-input w-full text-sm"
+            placeholder={'Ada, ada@example.com\nBea, bea@example.com, 555-0101'}
+            aria-label="Names and email addresses"
+          />
+          {importError && <p className="text-xs text-rose-300">{importError}</p>}
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn btn-secondary text-xs" onClick={() => setImportOpen(false)}>
+              Cancel
+            </button>
+            <button type="button" className="btn btn-primary text-xs" onClick={commitImport}>
+              Import
+            </button>
+          </div>
+        </div>
+      )}
       <div className="space-y-2">
         {(event.nameRows || []).map((row, index) => (
           <div key={row.id} className="friend-card">
@@ -472,6 +541,70 @@ function exclusionSummary(giverId, participants, exclusions) {
   return `Won't draw ${blocked.length} people`;
 }
 
+function profilePatch(event, person, fields) {
+  if (person.isOrganizer) {
+    return {
+      organizerListTitle: fields.listTitle !== undefined ? fields.listTitle : event.organizerListTitle,
+      organizerAgeBand: fields.ageBand !== undefined ? fields.ageBand : event.organizerAgeBand,
+      organizerShopFor: fields.shopFor !== undefined ? fields.shopFor : event.organizerShopFor,
+      organizerWishes: fields.wishes !== undefined ? fields.wishes : event.organizerWishes,
+      organizerHobbies: fields.hobbies !== undefined ? fields.hobbies : event.organizerHobbies,
+    };
+  }
+  return {
+    nameRows: (event.nameRows || []).map((row) => (row.id === person.id ? { ...row, ...fields } : row)),
+  };
+}
+
+function personFields(event, person) {
+  if (person.isOrganizer) {
+    return {
+      listTitle: event.organizerListTitle || '',
+      ageBand: event.organizerAgeBand || '',
+      shopFor: event.organizerShopFor || '',
+      wishes: event.organizerWishes || '',
+      hobbies: event.organizerHobbies || '',
+    };
+  }
+  const row = (event.nameRows || []).find((item) => item.id === person.id) || {};
+  return {
+    listTitle: row.listTitle || '',
+    ageBand: row.ageBand || '',
+    shopFor: row.shopFor || '',
+    wishes: row.wishes || '',
+    hobbies: row.hobbies || '',
+  };
+}
+
+function WishesStep({ event, patch, onBack, onContinue }) {
+  const organizer = materializeParticipants(event).find((person) => person.isOrganizer) || null;
+  const fields = organizer ? personFields(event, organizer) : {};
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-2xl font-bold font-heading text-white">My wish list</h2>
+        <p className="text-sm text-slate-300 mt-1">
+          Add your own ideas here. Friends add their wishlist, likes, and dislikes when they accept the invite.
+        </p>
+      </div>
+      {organizer ? (
+        <GiftFinder
+          key={organizer.id}
+          people={[organizer]}
+          activePersonId={organizer.id}
+          personName={organizer.name}
+          budget={event.budget}
+          onChange={(partial) => patch(profilePatch(event, organizer, partial))}
+          {...fields}
+        />
+      ) : (
+        <p className="text-sm text-slate-300">You are not in this draw. Each guest adds their own list when they accept.</p>
+      )}
+      <StepNav onBack={onBack} onContinue={onContinue} continueLabel="Continue" />
+    </div>
+  );
+}
+
 function ExclusionsStep({ event, patch, picker, setPicker, onBack, onContinue }) {
   const participants = event.participants || [];
   const choice = event.exclusionsChoice;
@@ -512,7 +645,7 @@ function ExclusionsStep({ event, patch, picker, setPicker, onBack, onContinue })
             patch({ exclusionsChoice: 'none', exclusions: [], matches: null });
           }}
         >
-          Do not set exclusions
+          No exclusions
         </button>
         <button
           type="button"
@@ -961,12 +1094,9 @@ function ShareStep({ event, onPreviewReveal, onUpdateEvent, onBack, onRedraw, on
   return (
     <section className="glass-panel-elevated p-5 sm:p-6 border border-emerald-500/30 space-y-4">
       <div>
-        <span className="badge badge-emerald mb-2">
-          <Check size={12} /> Draw completed
-        </span>
-        <h2 className="text-2xl font-bold font-heading text-white">Share reveal links</h2>
+        <h2 className="text-2xl font-bold font-heading text-white">Share each link</h2>
         <p className="text-sm text-slate-300 mt-1">
-          Email or text each person their own link. You can still copy, print, or show a QR code.
+          Open Share for one person. Email and text use your own apps.
         </p>
       </div>
       <RevealLinksPanel event={event} onPreviewReveal={onPreviewReveal} onUpdateEvent={onUpdateEvent} />
@@ -981,7 +1111,7 @@ function ShareStep({ event, onPreviewReveal, onUpdateEvent, onBack, onRedraw, on
             Draw again
           </button>
           <button type="button" onClick={onFinish} className="btn btn-primary text-sm">
-            Add wishlists in studio
+            Open the exchange
             <ChevronRight size={16} />
           </button>
         </div>

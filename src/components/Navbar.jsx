@@ -1,18 +1,38 @@
-import React from 'react';
-import { Gift, Sparkles, Volume2, VolumeX, Snowflake, RotateCcw, Smartphone, Tag } from 'lucide-react';
-import { sound } from '../utils/audio';
+import React, { useEffect, useRef, useState } from "react";
+import { Gift, Menu, Volume2, VolumeX, Snowflake, RotateCcw, X } from "lucide-react";
+import { sound } from "../utils/audio";
+import { staffAccess } from "../account/staff";
 
 export default function Navbar({
-  activeTab,
-  setActiveTab,
   soundEnabled,
   setSoundEnabled,
   snowEnabled,
   setSnowEnabled,
+  reduceMotion,
   onResetDemoData,
   onOpenInstallModal,
   onOpenAffiliateModal,
+  user,
+  area,
+  primaryLabel,
+  onPrimaryAction,
+  onOpenHome,
+  onCreateExchange,
+  onOpenAccount,
+  onOpenManage,
+  onOpenWishlist,
+  onOpenWhiteElephant,
+  onOpenSupport,
+  onOpenMerchants,
+  onOpenPrivacy,
+  onOpenContact,
 }) {
+  const [open, setOpen] = useState(false);
+  const headerRef = useRef(null);
+  const menuButtonRef = useRef(null);
+  const staff = staffAccess(user);
+  const showCreateInMenu = primaryLabel !== "Create an exchange";
+
   const toggleSound = () => {
     const next = !soundEnabled;
     sound.enabled = next;
@@ -20,132 +40,106 @@ export default function Navbar({
     if (next) sound.playClick();
   };
 
+  const go = (action) => {
+    sound.playClick();
+    setOpen(false);
+    action();
+  };
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const menu = headerRef.current?.querySelector("#site-menu button");
+    menu?.focus();
+    const onKey = (event) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    const onPointer = (event) => {
+      if (!headerRef.current?.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onPointer);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onPointer);
+    };
+  }, [open]);
+
   return (
-    <header className="glass-panel border-x-0 border-t-0 rounded-none sticky top-0 z-40 px-4 sm:px-8 py-3.5 backdrop-blur-xl border-b border-white/10">
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-        {/* Brand */}
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('secret-santa')}>
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 text-white flex items-center justify-center shadow-lg shadow-rose-500/25">
-            <Gift size={22} className="animate-gift-float" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-xl font-heading tracking-tight text-white">
-                GiftLoop
-              </span>
-              <span className="badge badge-emerald text-[9px] py-0.5 px-1.5">v2.0</span>
-            </div>
-            <p className="text-[11px] text-slate-400 font-medium">
-              Secret Santa & White Elephant Studio
-            </p>
-          </div>
-        </div>
+    <header className="site-header" ref={headerRef}>
+      <div className="site-header-bar">
+        <button type="button" className="brand-button" onClick={() => go(onOpenHome)}>
+          <span className="brand-mark" aria-hidden="true">
+            <Gift size={20} />
+          </span>
+          <span>
+            <span className="brand-name">Secret Gifter</span>
+            <span className="brand-tag">Christmas Secret Santa</span>
+          </span>
+        </button>
 
-        {/* Navigation Tabs */}
-        <nav className="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-white/10">
-          <button
-            onClick={() => {
-              sound.playClick();
-              setActiveTab('secret-santa');
-            }}
-            className={`btn text-xs py-2 px-3.5 rounded-lg transition-all ${
-              activeTab === 'secret-santa'
-                ? 'bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            🎁 Secret Santa
+        <div className="site-header-actions">
+          <button type="button" className="btn btn-primary text-sm" onClick={() => go(onPrimaryAction)}>
+            {primaryLabel}
           </button>
-
           <button
-            onClick={() => {
-              sound.playClick();
-              setActiveTab('white-elephant');
-            }}
-            className={`btn text-xs py-2 px-3.5 rounded-lg transition-all ${
-              activeTab === 'white-elephant'
-                ? 'bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30'
-                : 'text-slate-400 hover:text-white'
-            }`}
+            ref={menuButtonRef}
+            type="button"
+            className="btn btn-secondary text-sm"
+            aria-expanded={open}
+            aria-controls="site-menu"
+            onClick={() => setOpen((value) => !value)}
           >
-            🐘 White Elephant
-          </button>
-
-          <button
-            onClick={() => {
-              sound.playClick();
-              setActiveTab('gift-ideas');
-            }}
-            className={`btn text-xs py-2 px-3.5 rounded-lg transition-all ${
-              activeTab === 'gift-ideas'
-                ? 'bg-rose-500/20 text-rose-400 font-bold border border-rose-500/30'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            💡 Gift Ideas
-          </button>
-        </nav>
-
-        {/* Utility Toggles */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={toggleSound}
-            className={`p-2 rounded-lg border transition-colors ${
-              soundEnabled
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                : 'bg-white/5 text-slate-500 border-white/5'
-            }`}
-            title={soundEnabled ? 'Mute Sound FX' : 'Enable Sound FX'}
-          >
-            {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-          </button>
-
-          <button
-            onClick={() => setSnowEnabled(!snowEnabled)}
-            className={`p-2 rounded-lg border transition-colors ${
-              snowEnabled
-                ? 'bg-sky-500/10 text-sky-400 border-sky-500/30'
-                : 'bg-white/5 text-slate-500 border-white/5'
-            }`}
-            title={snowEnabled ? 'Disable Snowfall' : 'Enable Snowfall'}
-          >
-            <Snowflake size={16} />
-          </button>
-
-          <button
-            onClick={() => {
-              sound.playClick();
-              onOpenAffiliateModal && onOpenAffiliateModal();
-            }}
-            className="btn btn-secondary text-xs py-2 px-2.5 text-amber-400 hover:text-white"
-            title="Configure Amazon, Walmart, Bass Pro Affiliate Tags"
-          >
-            <Tag size={13} />
-            <span className="hidden md:inline">Affiliate Tags</span>
-          </button>
-
-          <button
-            onClick={() => {
-              sound.playClick();
-              onOpenInstallModal && onOpenInstallModal();
-            }}
-            className="btn btn-secondary text-xs py-2 px-2.5 text-sky-400 hover:text-white"
-            title="Install on iPhone / iOS"
-          >
-            <Smartphone size={13} />
-            <span className="hidden md:inline">iPhone App</span>
-          </button>
-
-          <button
-            onClick={onResetDemoData}
-            className="btn btn-secondary text-xs py-2 px-2.5"
-            title="Reset to sample party data"
-          >
-            <RotateCcw size={13} />
-            <span className="hidden sm:inline">Reset Demo</span>
+            {open ? <X size={16} /> : <Menu size={16} />}
+            Menu
           </button>
         </div>
       </div>
+
+      {open && (
+        <nav id="site-menu" className="site-menu" aria-label="More options">
+          <button type="button" className={area === "home" ? "is-current" : ""} onClick={() => go(onOpenHome)}>Home</button>
+          {showCreateInMenu && (
+            <button type="button" onClick={() => go(onCreateExchange)}>Create another exchange</button>
+          )}
+          <button type="button" className={area === "wishlist" ? "is-current" : ""} onClick={() => go(onOpenWishlist)}>Wish list</button>
+          <button type="button" className={area === "white-elephant" ? "is-current" : ""} onClick={() => go(onOpenWhiteElephant)}>White Elephant</button>
+          <button type="button" className={area === "admin" ? "is-current" : ""} onClick={() => go(onOpenManage)}>Manage exchange</button>
+          <button type="button" className={area === "account" ? "is-current" : ""} onClick={() => go(onOpenAccount)}>
+            Account and support
+          </button>
+          <button type="button" className={area === "privacy" ? "is-current" : ""} onClick={() => go(onOpenPrivacy)}>Privacy policy</button>
+          <button type="button" className={area === "contact" ? "is-current" : ""} onClick={() => go(onOpenContact)}>Contact</button>
+          <button type="button" onClick={() => go(onOpenInstallModal)}>Add to iPhone</button>
+          <button type="button" onClick={toggleSound}>
+            {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+            {soundEnabled ? "Sound on" : "Sound off"}
+          </button>
+          <button type="button" onClick={() => setSnowEnabled(!snowEnabled)} disabled={reduceMotion}>
+            <Snowflake size={14} />
+            {reduceMotion ? "Snow off for reduced motion" : snowEnabled ? "Snow on" : "Snow off"}
+          </button>
+          <button type="button" onClick={() => go(onResetDemoData)}>
+            <RotateCcw size={14} />
+            Load sample group
+          </button>
+          {staff && (
+            <button type="button" className={area === "support" ? "is-current" : ""} onClick={() => go(onOpenSupport)}>
+              Support tools
+            </button>
+          )}
+          {staff === "admin" && (
+            <button type="button" className={area === "merchants" ? "is-current" : ""} onClick={() => go(onOpenMerchants)}>
+              Platform merchants
+            </button>
+          )}
+          {staff === "admin" && (
+            <button type="button" onClick={() => go(onOpenAffiliateModal)}>Affiliate tags</button>
+          )}
+        </nav>
+      )}
     </header>
   );
 }

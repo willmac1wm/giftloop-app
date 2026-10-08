@@ -1,54 +1,144 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Navbar';
-import SecretSantaTab from './components/SecretSantaTab';
-import WhiteElephantTab from './components/WhiteElephantTab';
-import GiftIdeasTab from './components/GiftIdeasTab';
 import SecretRevealView from './components/SecretRevealView';
 import IosInstallModal from './components/IosInstallModal';
-import MobileBottomNav from './components/MobileBottomNav';
 import AffiliateSettingsModal from './components/AffiliateSettingsModal';
-import { initialSecretSantaEvent, initialWhiteElephantEvent } from './data/mockData';
-import { createBlankSecretSantaEvent, normalizeLoadedEvent } from './data/eventState';
+import AccountScreen from './components/AccountScreen';
+import HomeScreen from './components/HomeScreen';
+import AdminScreen from './components/AdminScreen';
+import WishListScreen from './components/WishListScreen';
+import InviteScreen from './components/InviteScreen';
+import AssignmentScreen from './components/AssignmentScreen';
+import DeviceProfileScreen from './components/DeviceProfileScreen';
+import SupportScreen from './components/SupportScreen';
+import PolicyScreen from './components/PolicyScreen';
+import { privacySections, supportSections } from './content/policies';
+import MerchantScreen from './components/MerchantScreen';
+import WhiteElephantTab from './components/WhiteElephantTab';
+import { initialWhiteElephantEvent } from './data/mockData';
+import { clearPrivateRevealNotes } from './account/privacy';
+import {
+  ExchangeScreen,
+  EXCHANGE_STORAGE_KEY,
+  loadExchange,
+  blankExchange,
+  sampleExchange,
+} from './games/secretSanta';
 import { decodeSecretPayload } from './utils/crypto';
 import { sound } from './utils/audio';
+import { staffAccess } from './account/staff';
+import { NEXT_ACTION_LABEL, deviceNextAction, organizerMatch } from './exchange/progress';
+import { buildRevealPayload } from './utils/revealLink';
+
+function entryFromLocation() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view');
+    const token = params.get('t') || '';
+    return {
+      inviteCode: view === 'invite' || view === 'join' ? params.get('code') || '' : '',
+      openJoin: view === 'join',
+      assignmentExchangeId: view === 'assignment' ? params.get('exchange') || '' : '',
+      profilePersonId: view === 'profile' ? params.get('person') || '' : '',
+      policy: view === 'privacy' ? 'privacy' : view === 'contact' ? 'contact' : '',
+      revealPayload: view === 'reveal' && token ? decodeSecretPayload(token) : null,
+    };
+  } catch {
+    return { inviteCode: '', openJoin: false, assignmentExchangeId: '', profilePersonId: '', policy: '', revealPayload: null };
+  }
+}
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('secret-santa'); // 'secret-santa' | 'white-elephant' | 'gift-ideas'
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [snowEnabled, setSnowEnabled] = useState(true);
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [showAffiliateModal, setShowAffiliateModal] = useState(false);
-
-  // Persistence for Secret Santa Event
-  const [secretSantaEvent, setSecretSantaEvent] = useState(() => {
-    try {
-      const saved = localStorage.getItem('giftloop_secretsanta_v2');
-      const parsed = saved ? JSON.parse(saved) : null;
-      return normalizeLoadedEvent(parsed, initialSecretSantaEvent, createBlankSecretSantaEvent);
-    } catch {
-      return createBlankSecretSantaEvent();
-    }
+  const [savedFocus, setSavedFocus] = useState(null);
+  const [reduceMotion, setReduceMotion] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  ));
+  const [user, setUser] = useState(null);
+  const [area, setArea] = useState(() => {
+    const start = entryFromLocation();
+    if (start.inviteCode) return 'invite';
+    if (start.assignmentExchangeId) return 'assignment';
+    if (start.profilePersonId) return 'profile';
+    if (start.policy) return start.policy;
+    return 'home';
   });
+  const [afterAccount, setAfterAccount] = useState('home');
+  const [manageExchangeId, setManageExchangeId] = useState('');
+  const [recovery, setRecovery] = useState(false);
 
-  // Persistence for White Elephant Event
-  const [whiteElephantEvent, setWhiteElephantEvent] = useState(() => {
+  const [exchange, setExchange] = useState(() => {
     try {
-      const saved = localStorage.getItem('giftloop_whiteelephant_v2');
-      return saved ? JSON.parse(saved) : initialWhiteElephantEvent;
+      const saved = localStorage.getItem(EXCHANGE_STORAGE_KEY);
+      const parsed = saved ? JSON.parse(saved) : null;
+      return loadExchange(parsed);
     } catch {
-      return initialWhiteElephantEvent;
+      return blankExchange();
     }
   });
 
   // URL Query inspection for direct secret reveal link (e.g. ?view=reveal&t=...)
-  const [urlPayload, setUrlPayload] = useState(null);
+  const [urlPayload, setUrlPayload] = useState(() => entryFromLocation().revealPayload);
   const [previewPayload, setPreviewPayload] = useState(null);
+  const [inviteCode, setInviteCode] = useState(() => entryFromLocation().inviteCode);
+  const [openJoin, setOpenJoin] = useState(() => entryFromLocation().openJoin);
+  const [assignmentExchangeId, setAssignmentExchangeId] = useState(() => entryFromLocation().assignmentExchangeId);
+  const [profilePersonId, setProfilePersonId] = useState(() => entryFromLocation().profilePersonId);
+  const [whiteElephant, setWhiteElephant] = useState(() => {
+    try {
+      const saved = localStorage.getItem('giftloop_whiteelephant_v2');
+      return saved ? JSON.parse(saved) : structuredClone(initialWhiteElephantEvent);
+    } catch {
+      return structuredClone(initialWhiteElephantEvent);
+    }
+  });
+
+  useEffect(() => {
+    let unsubscribe = () => {};
+    let cancel = false;
+    (async () => {
+      try {
+        const identity = await import('@netlify/identity');
+        const callback = await identity.handleAuthCallback();
+        if (cancel) return;
+        if (callback?.type === 'recovery') {
+          setRecovery(true);
+          const start = entryFromLocation();
+          if (start.inviteCode) setAfterAccount('invite');
+          else if (start.assignmentExchangeId) setAfterAccount('assignment');
+          setArea('account');
+        }
+        setUser(await identity.getUser());
+        unsubscribe = identity.onAuthChange((_event, next) => setUser(next));
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+    return () => {
+      cancel = true;
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       const view = params.get('view');
       const token = params.get('t');
+      if (view === 'invite' || view === 'join') {
+        setInviteCode(params.get('code') || '');
+        setOpenJoin(view === 'join');
+      }
+      if (view === 'assignment') setAssignmentExchangeId(params.get('exchange') || '');
+      if (view === 'profile') {
+        setProfilePersonId(params.get('person') || '');
+        setArea('profile');
+      }
+      if (view === 'privacy') setArea('privacy');
+      if (view === 'contact') setArea('contact');
       if (view === 'reveal' && token) {
         const decoded = decodeSecretPayload(token);
         if (decoded) {
@@ -60,49 +150,143 @@ export default function App() {
     }
   }, []);
 
-  // Save events whenever they change
   useEffect(() => {
     try {
-      localStorage.setItem('giftloop_secretsanta_v2', JSON.stringify(secretSantaEvent));
+      localStorage.setItem(EXCHANGE_STORAGE_KEY, JSON.stringify(exchange));
     } catch (e) {
       console.error(e);
     }
-  }, [secretSantaEvent]);
+  }, [exchange]);
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const apply = () => setReduceMotion(media.matches);
+    apply();
+    media.addEventListener('change', apply);
+    return () => media.removeEventListener('change', apply);
+  }, []);
+
+  const rememberSaved = useCallback((next) => {
+    setSavedFocus((current) => {
+      if (!next && !current) return current;
+      if (next && current && next.id === current.id && next.drawn === current.drawn) return current;
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     try {
-      localStorage.setItem('giftloop_whiteelephant_v2', JSON.stringify(whiteElephantEvent));
+      localStorage.setItem('giftloop_whiteelephant_v2', JSON.stringify(whiteElephant));
     } catch (e) {
       console.error(e);
     }
-  }, [whiteElephantEvent]);
+  }, [whiteElephant]);
 
   const handleResetDemoData = () => {
-    if (window.confirm('Reset all games and participants to sample holiday data?')) {
+    if (window.confirm('Reset this Secret Santa to the sample group?')) {
       sound.playClick();
-      setSecretSantaEvent(structuredClone(initialSecretSantaEvent));
-      setWhiteElephantEvent(structuredClone(initialWhiteElephantEvent));
-      localStorage.removeItem('giftloop_secretsanta_v2');
-      localStorage.removeItem('giftloop_whiteelephant_v2');
+      setExchange(sampleExchange());
+      localStorage.removeItem(EXCHANGE_STORAGE_KEY);
     }
+  };
+
+  const deviceKind = deviceNextAction(exchange);
+  const headerKind = deviceKind === 'create' && savedFocus
+    ? (savedFocus.drawn ? 'reveal' : 'continue')
+    : deviceKind;
+
+  const openSaved = (id, drawn) => {
+    sound.playClick();
+    if (drawn) {
+      setAssignmentExchangeId(id);
+      setAfterAccount('assignment');
+      setArea('assignment');
+      return;
+    }
+    setManageExchangeId(id);
+    setArea('admin');
+  };
+
+  const runPrimary = () => {
+    if (deviceKind === 'reveal') {
+      const match = organizerMatch(exchange);
+      sound.playClick();
+      setArea('exchange');
+      if (match) setPreviewPayload(buildRevealPayload(exchange, match));
+      return;
+    }
+    if (deviceKind === 'continue') {
+      sound.playClick();
+      setArea('exchange');
+      return;
+    }
+    if (savedFocus) {
+      openSaved(savedFocus.id, savedFocus.drawn);
+      return;
+    }
+    openCreate();
+  };
+
+  const openCreate = () => {
+    const inProgress = exchange.wizardStep && exchange.wizardStep !== 'start';
+    if (inProgress && !window.confirm('Start a new exchange on this device? The current one will be replaced.')) return;
+    if (inProgress) setExchange(blankExchange());
+    sound.playClick();
+    setArea('exchange');
   };
 
   const handleStartNewExchange = () => {
     if (!window.confirm('Start a new Secret Santa on this device? The current exchange will be replaced.')) return;
     sound.playClick();
-    setSecretSantaEvent(createBlankSecretSantaEvent());
+    setExchange(blankExchange());
   };
 
   const handleLoadSampleExchange = () => {
     sound.playClick();
-    setSecretSantaEvent(structuredClone(initialSecretSantaEvent));
+    setExchange(sampleExchange());
   };
+
+  const saveDeviceProfile = (personId, fields) => {
+    const wishlist = String(fields.wishes || '').split('\n').map((line) => line.trim()).filter(Boolean);
+    const likes = String(fields.likes || '').trim();
+    const dislikes = String(fields.dislikes || '').trim();
+    setExchange((current) => ({
+      ...current,
+      organizerWishes: personId === current.organizerId ? fields.wishes || '' : current.organizerWishes,
+      organizerHobbies: personId === current.organizerId ? likes : current.organizerHobbies,
+      participants: (current.participants || []).map((person) => (
+        person.id === personId ? { ...person, wishlist, likes, dislikes, joined: true } : person
+      )),
+      nameRows: (current.nameRows || []).map((row) => (
+        row.id === personId ? { ...row, wishes: fields.wishes || '', hobbies: likes, dislikes } : row
+      )),
+    }));
+  };
+
+  const leaveAccount = () => {
+    if (afterAccount === 'invite' && inviteCode) {
+      setArea('invite');
+      return;
+    }
+    if (afterAccount === 'assignment' && assignmentExchangeId) {
+      setArea('assignment');
+      return;
+    }
+    const next = afterAccount === 'account' || afterAccount === 'invite' || afterAccount === 'assignment' ? 'home' : afterAccount;
+    setArea(next);
+  };
+
+  const accountBackLabel = afterAccount === 'invite'
+    ? 'Back to the invitation'
+    : afterAccount === 'assignment'
+      ? 'Back to your recipient'
+      : 'Back home';
 
   // If user opened a direct secret link via URL:
   if (urlPayload) {
     return (
       <div className="min-h-screen text-slate-100 relative">
-        {snowEnabled && <Snowfall />}
+        {snowEnabled && !reduceMotion && <Snowfall />}
         <SecretRevealView payload={urlPayload} />
       </div>
     );
@@ -112,7 +296,7 @@ export default function App() {
   if (previewPayload) {
     return (
       <div className="min-h-screen text-slate-100 relative">
-        {snowEnabled && <Snowfall />}
+        {snowEnabled && !reduceMotion && <Snowfall />}
         <SecretRevealView
           payload={previewPayload}
           onBackToOrganizer={() => setPreviewPayload(null)}
@@ -123,60 +307,196 @@ export default function App() {
 
   return (
     <div className="min-h-screen text-slate-100 relative flex flex-col">
-      {snowEnabled && <Snowfall />}
+      {snowEnabled && !reduceMotion && <Snowfall />}
 
       <Navbar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
         soundEnabled={soundEnabled}
         setSoundEnabled={setSoundEnabled}
         snowEnabled={snowEnabled}
         setSnowEnabled={setSnowEnabled}
+        reduceMotion={reduceMotion}
         onResetDemoData={handleResetDemoData}
         onOpenInstallModal={() => setShowInstallModal(true)}
         onOpenAffiliateModal={() => setShowAffiliateModal(true)}
+        user={user}
+        area={area}
+        primaryLabel={NEXT_ACTION_LABEL[headerKind]}
+        onPrimaryAction={runPrimary}
+        onOpenHome={() => setArea('home')}
+        onCreateExchange={openCreate}
+        onOpenAccount={() => {
+          setAfterAccount(area === 'account' ? 'home' : area);
+          setArea('account');
+        }}
+        onOpenManage={() => setArea('admin')}
+        onOpenWishlist={() => setArea('wishlist')}
+        onOpenWhiteElephant={() => setArea('white-elephant')}
+        onOpenSupport={() => setArea('support')}
+        onOpenMerchants={() => setArea('merchants')}
+        onOpenPrivacy={() => setArea('privacy')}
+        onOpenContact={() => setArea('contact')}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 z-10">
-        {activeTab === 'secret-santa' && (
-          <SecretSantaTab
-            event={secretSantaEvent}
-            onUpdateEvent={setSecretSantaEvent}
+      <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 lg:p-8 z-10">
+        {area === 'invite' && inviteCode && (
+          <InviteScreen
+            code={inviteCode}
+            openJoin={openJoin}
+            user={user}
+            onNeedAccount={() => {
+              setAfterAccount('invite');
+              setArea('account');
+            }}
+            onDone={() => {
+              setInviteCode('');
+              setArea('wishlist');
+            }}
+          />
+        )}
+        {area === 'assignment' && assignmentExchangeId && (
+          <AssignmentScreen
+            key={`${user?.id || 'signed-out'}:${assignmentExchangeId}`}
+            exchangeId={assignmentExchangeId}
+            user={user}
+            onNeedAccount={() => {
+              setAfterAccount('assignment');
+              setArea('account');
+            }}
+            onOpenWishlist={() => {
+              setManageExchangeId(assignmentExchangeId);
+              setArea('wishlist');
+            }}
+          />
+        )}
+        {area === 'account' && (
+          <AccountScreen
+            user={user}
+            recovery={recovery}
+            backLabel={accountBackLabel}
+            onSignedIn={(next) => {
+              setUser(next);
+              setRecovery(false);
+              leaveAccount();
+            }}
+            onSignedOut={() => {
+              clearPrivateRevealNotes();
+              setUser(null);
+              setAssignmentExchangeId('');
+              setArea('account');
+            }}
+            onBack={leaveAccount}
+            staff={staffAccess(user)}
+            onOpenSupport={() => setArea('support')}
+            onOpenMerchants={() => setArea('merchants')}
+            onOpenAffiliate={staffAccess(user) === 'admin' ? () => setShowAffiliateModal(true) : null}
+          />
+        )}
+        {area === 'home' && (
+          <HomeScreen
+            exchange={exchange}
+            user={user}
+            onCreate={openCreate}
+            onContinue={() => setArea('exchange')}
+            onReveal={runPrimary}
+            onOpenManage={(id) => openSaved(id, false)}
+            onRevealSaved={(id) => openSaved(id, true)}
+            onSavedFocus={rememberSaved}
+            onOpenWishlist={() => setArea('wishlist')}
+          />
+        )}
+        {area === 'admin' && (
+          <AdminScreen
+            key={`${user?.id || 'signed-out'}:${manageExchangeId}`}
+            user={user}
+            initialExchangeId={manageExchangeId}
+            onNeedAccount={() => {
+              setAfterAccount('admin');
+              setArea('account');
+            }}
+            onOpenWishlist={(id) => {
+              setManageExchangeId(id);
+              setArea('wishlist');
+            }}
+            onOpenRecipient={(id) => openSaved(id, true)}
+          />
+        )}
+        {area === 'wishlist' && (
+          <WishListScreen
+            key={user?.id || 'signed-out'}
+            user={user}
+            exchangeId={manageExchangeId}
+            onNeedAccount={() => {
+              setAfterAccount('wishlist');
+              setArea('account');
+            }}
+          />
+        )}
+        {area === 'white-elephant' && (
+          <WhiteElephantTab event={whiteElephant} onUpdateEvent={setWhiteElephant} />
+        )}
+        {area === 'privacy' && (
+          <PolicyScreen
+            title="Privacy policy"
+            lede="This page describes what Secret Gifter stores."
+            sections={privacySections}
+            otherHref="/support/"
+            otherLabel="Support"
+          />
+        )}
+        {area === 'contact' && (
+          <PolicyScreen
+            title="Support"
+            lede="This is the public contact page."
+            sections={supportSections}
+            otherHref="/privacy/"
+            otherLabel="Privacy policy"
+          />
+        )}
+        {area === 'support' && (
+          <SupportScreen
+            key={user?.id || 'signed-out'}
+            user={user}
+            onNeedAccount={() => {
+              setAfterAccount('support');
+              setArea('account');
+            }}
+            staff={staffAccess(user)}
+          />
+        )}
+        {area === 'merchants' && (
+          <MerchantScreen
+            key={user?.id || 'signed-out'}
+            user={user}
+            onNeedAccount={() => {
+              setAfterAccount('merchants');
+              setArea('account');
+            }}
+            onOpenAffiliate={staffAccess(user) === 'admin' ? () => setShowAffiliateModal(true) : null}
+          />
+        )}
+        {area === 'profile' && (
+          <DeviceProfileScreen
+            event={exchange}
+            personId={profilePersonId}
+            onSave={saveDeviceProfile}
+          />
+        )}
+        {area === 'exchange' && (
+          <ExchangeScreen
+            event={exchange}
+            onUpdateEvent={setExchange}
             onPreviewReveal={(payload) => setPreviewPayload(payload)}
             onStartNewExchange={handleStartNewExchange}
             onLoadSample={handleLoadSampleExchange}
           />
         )}
-
-        {activeTab === 'white-elephant' && (
-          <WhiteElephantTab
-            event={whiteElephantEvent}
-            onUpdateEvent={setWhiteElephantEvent}
-          />
-        )}
-
-        {activeTab === 'gift-ideas' && (
-          <GiftIdeasTab />
-        )}
       </main>
 
       <footer className="z-10 py-6 border-t border-white/5 text-center text-xs text-slate-400 no-print hidden sm:block">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>
-            🎁 <strong>GiftLoop</strong> • Privacy-first Secret Santa & White Elephant
-          </span>
-          <span className="text-slate-400">
-            Zero email tracking • All matching & tokens encrypted in browser
-          </span>
+        <div className="max-w-3xl mx-auto px-4">
+          Secret Gifter · Christmas Secret Santa
         </div>
       </footer>
-
-      {/* iOS Mobile Bottom Navigation Bar */}
-      <MobileBottomNav
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onOpenInstallModal={() => setShowInstallModal(true)}
-      />
 
       {/* iOS Add to Home Screen Instructions Modal */}
       <IosInstallModal
@@ -186,6 +506,7 @@ export default function App() {
 
       {/* Affiliate Partner & Store Settings Modal */}
       <AffiliateSettingsModal
+        key={showAffiliateModal ? 'affiliate-open' : 'affiliate-closed'}
         isOpen={showAffiliateModal}
         onClose={() => setShowAffiliateModal(false)}
       />

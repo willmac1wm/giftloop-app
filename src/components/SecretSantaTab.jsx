@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import confetti from 'canvas-confetti';
+import { celebrateDraw } from '../utils/christmasConfetti';
 import {
   Users, Plus, Trash2, ShieldAlert, Sparkles, DollarSign, Calendar, AlertCircle,
 } from 'lucide-react';
@@ -8,6 +8,11 @@ import { generateSecretSantaDraw } from '../utils/shuffle';
 import ExclusionModal from './ExclusionModal';
 import CreateExchangeWizard from './CreateExchangeWizard';
 import RevealLinksPanel from './RevealLinksPanel';
+import ExchangeWishLinks from './ExchangeWishLinks';
+import { organizerMatch, organizerPerson } from '../exchange/progress';
+import { profileStatus } from '../exchange/profileStatus';
+import { buildRevealPayload } from '../utils/revealLink';
+import ExchangeDateActions from './ExchangeDateActions';
 
 export default function SecretSantaTab({
   event,
@@ -18,44 +23,51 @@ export default function SecretSantaTab({
 }) {
   const [showExclusions, setShowExclusions] = useState(false);
   const [drawError, setDrawError] = useState(null);
+  const [editingWishes, setEditingWishes] = useState(false);
+  const [wishDraft, setWishDraft] = useState('');
 
   // Form states for adding participant
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
-  const [newWishlist, setNewWishlist] = useState('');
-  const [newLikes, setNewLikes] = useState('');
-  const [newDislikes, setNewDislikes] = useState('');
+  const [behalfWishlist, setBehalfWishlist] = useState('');
+  const [behalfLikes, setBehalfLikes] = useState('');
+  const [behalfDislikes, setBehalfDislikes] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const canReach = Boolean(newEmail.trim() || newPhone.trim());
 
   const handleAddParticipant = (e) => {
     e.preventDefault();
     if (!newName.trim()) return;
 
     sound.playClick();
+    const onBehalf = !canReach;
+    const wishlist = onBehalf
+      ? behalfWishlist.split('\n').map((w) => w.trim()).filter(Boolean)
+      : [];
     const newParticipant = {
       id: 'p_' + Date.now(),
       name: newName.trim(),
       email: newEmail.trim(),
       phone: newPhone.trim(),
-      wishlist: newWishlist.split('\n').map((w) => w.trim()).filter(Boolean),
-      likes: newLikes.trim(),
-      dislikes: newDislikes.trim(),
+      wishlist,
+      likes: onBehalf ? behalfLikes.trim() : '',
+      dislikes: onBehalf ? behalfDislikes.trim() : '',
+      joined: false,
     };
 
     onUpdateEvent({
       ...event,
       participants: [...event.participants, newParticipant],
-      // If matches were already drawn, keep them or mark need redraw
       matches: null,
     });
 
     setNewName('');
     setNewEmail('');
     setNewPhone('');
-    setNewWishlist('');
-    setNewLikes('');
-    setNewDislikes('');
+    setBehalfWishlist('');
+    setBehalfLikes('');
+    setBehalfDislikes('');
     setShowAddForm(false);
   };
 
@@ -88,12 +100,7 @@ export default function SecretSantaTab({
       matches: result.matches,
     });
 
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#10b981', '#f43f5e', '#fbbf24', '#ffffff'],
-    });
+    celebrateDraw();
   };
 
   if (!event.setupComplete) {
@@ -108,8 +115,58 @@ export default function SecretSantaTab({
     );
   }
 
+  const me = organizerPerson(event);
+  const saveMyWishes = (submitEvent) => {
+    submitEvent.preventDefault();
+    const lines = wishDraft.split('\n').map((line) => line.trim()).filter(Boolean);
+    onUpdateEvent({
+      ...event,
+      organizerWishes: wishDraft,
+      participants: (event.participants || []).map((person) => (
+        person.id === me?.id ? { ...person, wishlist: lines } : person
+      )),
+    });
+    setEditingWishes(false);
+  };
+
   return (
     <div className="space-y-6">
+      <header className="exchange-lead">
+        <p className="home-kicker">This exchange</p>
+        <h1>{event.title || 'Secret Santa'}</h1>
+        <p>
+          {[event.exchangeDate && `Gift date ${event.exchangeDate}`, event.budget && `Budget ${event.budget}`]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+        <p className="home-next">
+          Next: {event.matches ? 'Share each link, or read your recipient’s wishes.' : 'Set exclusions, then draw names.'}
+        </p>
+        <ExchangeWishLinks
+          event={event}
+          onOpenMine={() => {
+            setWishDraft((me?.wishlist || []).join('\n'));
+            setEditingWishes(true);
+          }}
+          onPreview={event.matches ? () => {
+            const match = organizerMatch(event);
+            if (match) onPreviewReveal(buildRevealPayload(event, match));
+          } : null}
+        />
+        {editingWishes && (
+          <form className="exchange-wish-panel" onSubmit={saveMyWishes}>
+            <label htmlFor="my-wish-list">Edit my wish list. One gift per line.</label>
+            <textarea
+              id="my-wish-list"
+              className="glass-input w-full"
+              rows={4}
+              value={wishDraft}
+              onChange={(e) => setWishDraft(e.target.value)}
+            />
+            <button type="submit" className="btn btn-primary text-sm">Save wish list</button>
+          </form>
+        )}
+      </header>
       {/* Event Overview & Settings Card */}
       <div className="glass-panel p-5 sm:p-6 border border-white/10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -154,6 +211,9 @@ export default function SecretSantaTab({
             />
           </div>
         </div>
+        <div className="mt-3">
+          <ExchangeDateActions id={event.title} title={event.title} date={event.exchangeDate} />
+        </div>
 
         <div className="mt-4 pt-3 border-t border-white/5">
           <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
@@ -194,7 +254,7 @@ export default function SecretSantaTab({
             Participants ({event.participants.length})
           </h2>
           <p className="text-xs text-slate-400">
-            Add friends, configure spouse/exclusion rules, then draw!
+            Add a name and an email or mobile. They fill in their own wishlist when they accept.
           </p>
         </div>
 
@@ -251,9 +311,12 @@ export default function SecretSantaTab({
       {/* Add Participant Expandable Form */}
       {showAddForm && (
         <form onSubmit={handleAddParticipant} className="glass-panel p-5 border border-emerald-500/30 animate-fade-in">
-          <h3 className="text-sm font-bold font-heading text-emerald-400 mb-3 uppercase tracking-wider">
+          <h3 className="text-sm font-bold font-heading text-emerald-400 mb-1 uppercase tracking-wider">
             Add New Participant
           </h3>
+          <p className="text-xs text-slate-400 mb-3">
+            Enter a name plus an email or mobile number. The invite asks them for wishlist ideas, likes, and dislikes.
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
             <div>
               <label className="text-xs text-slate-400 block mb-1">Full Name *</label>
@@ -288,38 +351,46 @@ export default function SecretSantaTab({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-            <div>
-              <label className="text-xs text-slate-400 block mb-1">Wishlist Ideas (One per line)</label>
-              <textarea
-                value={newWishlist}
-                onChange={(e) => setNewWishlist(e.target.value)}
-                placeholder="Coffee beans&#10;Wool socks&#10;Sci-fi book"
-                rows={3}
-                className="glass-input w-full text-xs"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-slate-400 block mb-1">Likes & Hobbies</label>
-              <textarea
-                value={newLikes}
-                onChange={(e) => setNewLikes(e.target.value)}
-                placeholder="Baking, hiking, jazz music, board games"
-                rows={3}
-                className="glass-input w-full text-xs"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-slate-400 block mb-1">Dislikes & Allergies</label>
-              <textarea
-                value={newDislikes}
-                onChange={(e) => setNewDislikes(e.target.value)}
-                placeholder="Nut allergy, no scented candles"
-                rows={3}
-                className="glass-input w-full text-xs"
-              />
-            </div>
-          </div>
+          {!canReach && (
+            <details className="mb-4">
+              <summary className="text-xs text-slate-400 cursor-pointer">Add on their behalf</summary>
+              <p className="text-xs text-slate-500 mt-2 mb-2">
+                Only for someone with no email and no phone, who cannot fill this in themselves.
+              </p>
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Wishlist ideas, one per line</label>
+                  <textarea
+                    value={behalfWishlist}
+                    onChange={(e) => setBehalfWishlist(e.target.value)}
+                    placeholder={"Coffee beans\nWool socks\nSci-fi book"}
+                    rows={3}
+                    className="glass-input w-full text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Likes and hobbies</label>
+                  <textarea
+                    value={behalfLikes}
+                    onChange={(e) => setBehalfLikes(e.target.value)}
+                    placeholder="Baking, hiking, jazz music, board games"
+                    rows={2}
+                    className="glass-input w-full text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Dislikes and allergies</label>
+                  <textarea
+                    value={behalfDislikes}
+                    onChange={(e) => setBehalfDislikes(e.target.value)}
+                    placeholder="Nut allergy, no scented candles"
+                    rows={2}
+                    className="glass-input w-full text-xs"
+                  />
+                </div>
+              </div>
+            </details>
+          )}
 
           <div className="flex justify-end gap-2">
             <button
@@ -353,6 +424,7 @@ export default function SecretSantaTab({
                     </h3>
                     {p.email && <p className="text-xs text-slate-400">{p.email}</p>}
                     {p.phone && <p className="text-xs text-slate-400">{p.phone}</p>}
+                    <span className={`badge ${statusTone(profileStatus(p))} mt-2`}>{profileStatus(p)}</span>
                   </div>
                   <button
                     onClick={() => handleRemoveParticipant(p.id)}
@@ -363,27 +435,6 @@ export default function SecretSantaTab({
                   </button>
                 </div>
 
-                {p.wishlist && p.wishlist.length > 0 && (
-                  <div className="mb-2">
-                    <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">
-                      Wishlist ({p.wishlist.length})
-                    </span>
-                    <p className="text-xs text-slate-300 line-clamp-2 mt-0.5">
-                      {p.wishlist.join(', ')}
-                    </p>
-                  </div>
-                )}
-
-                {p.likes && (
-                  <p className="text-[11px] text-slate-400 line-clamp-1 mb-1">
-                    ❤️ {p.likes}
-                  </p>
-                )}
-                {p.dislikes && (
-                  <p className="text-[11px] text-rose-300 line-clamp-1 mb-1">
-                    🚫 {p.dislikes}
-                  </p>
-                )}
               </div>
 
               {exclusionsForP.length > 0 && (
@@ -401,11 +452,8 @@ export default function SecretSantaTab({
       {event.matches && (
         <div className="glass-panel-elevated p-6 border border-emerald-500/30 animate-fade-in space-y-4">
           <div className="pb-4 border-b border-white/10">
-            <span className="badge badge-emerald mb-1">
-              Draw Completed & Locked
-            </span>
             <h2 className="text-2xl font-bold font-heading text-white">
-              Shareable Secret Reveal Links
+              Share each link
             </h2>
           </div>
           <RevealLinksPanel event={event} onPreviewReveal={onPreviewReveal} onUpdateEvent={onUpdateEvent} />
@@ -429,4 +477,11 @@ export default function SecretSantaTab({
 
     </div>
   );
+}
+
+function statusTone(label) {
+  if (label === 'Wishlist added') return 'badge-gold';
+  if (label === 'Joined') return 'badge-emerald';
+  if (label === 'Declined') return 'badge-ruby';
+  return 'badge-frozen';
 }

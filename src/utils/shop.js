@@ -1,4 +1,5 @@
 import { curatedGiftIdeas } from '../data/mockData.js';
+import { profileGiftQuery } from '../data/giftProfile.js';
 
 export function budgetCeiling(budget) {
   const nums = String(budget || '').match(/\d+(?:\.\d+)?/g);
@@ -19,7 +20,7 @@ export function ideasWithinBudget(budget, limit = 4) {
   return pool.slice(0, limit);
 }
 
-export function shopQuery({ receiverName, likes, wishlist, budget }) {
+export function shopQuery({ receiverName, likes, wishlist, budget, ageBand, shopFor }) {
   const wishes = wishlist || [];
   for (const item of wishes) {
     const title = typeof item === 'object' && item ? item.title : item;
@@ -27,7 +28,10 @@ export function shopQuery({ receiverName, likes, wishlist, budget }) {
   }
   const like = String(likes || '').split(/[,.]/).map((part) => part.trim()).find(Boolean);
   if (like) return like;
+  const profile = profileGiftQuery({ shopFor, ageBand });
   const ceiling = budgetCeiling(budget);
+  if (profile && ceiling) return `gifts for a ${profile} under $${ceiling}`;
+  if (profile) return `gifts for a ${profile}`;
   if (ceiling) return `gifts under $${ceiling}`;
   return receiverName ? `gift for ${receiverName}` : 'gift ideas';
 }

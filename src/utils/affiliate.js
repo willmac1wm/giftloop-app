@@ -1,4 +1,4 @@
-// Affiliate Linking Engine for Amazon, Walmart, Bass Pro Shops, Target, and More
+// Shared shop tags for any gift-type app. The draw algorithm does not live here.
 
 export const DEFAULT_AFFILIATE_CONFIG = {
   enabled: true,
@@ -9,13 +9,62 @@ export const DEFAULT_AFFILIATE_CONFIG = {
   bestBuyPartnerId: 'giftloop',
 };
 
+export const CENTER_STORES = [
+  { id: 'amazon', name: 'Amazon', photo: '/shopping/photo-tech.jpg', position: 'center' },
+  { id: 'walmart', name: 'Walmart', photo: '/shopping/photo-home.jpg', position: 'center' },
+  { id: 'target', name: 'Target', photo: '/shopping/photo-style.jpg', position: 'center' },
+  { id: 'basspro', name: 'Bass Pro Shops', photo: '/shopping/photo-outdoors.jpg', position: 'left center' },
+  { id: 'cabelas', name: "Cabela's", photo: '/shopping/photo-outdoors.jpg', position: 'right center' },
+  { id: 'bestbuy', name: 'Best Buy', photo: '/shopping/photo-play.jpg', position: 'center' },
+];
+
+/** Query keys Secret Gifter reads when a full affiliate link is pasted into a store field. */
+export const AFFILIATE_PARAM_KEYS = {
+  amazon: ['tag'],
+  walmart: ['wmlspartner', 'affiliate_id'],
+  basspro: ['affCode'],
+  cabelas: ['affCode'],
+  target: ['afid', 'clkid'],
+  bestbuy: ['irclickid'],
+};
+
+const SAMPLE_CODE_KEYS = ['amazonTag', 'walmartPublisherId', 'bassProPartnerId', 'targetPartnerId', 'bestBuyPartnerId'];
+
 export const SUPPORTED_STORES = [
   { id: 'amazon', name: 'Amazon', domain: 'amazon.com', icon: '📦', color: '#ff9900' },
   { id: 'walmart', name: 'Walmart', domain: 'walmart.com', icon: '🛒', color: '#0071dc' },
   { id: 'basspro', name: 'Bass Pro Shops', domain: 'basspro.com', icon: '🎣', color: '#b91c1c' },
+  { id: 'cabelas', name: "Cabela's", domain: 'cabelas.com', icon: '🦌', color: '#14532d' },
   { id: 'target', name: 'Target', domain: 'target.com', icon: '🎯', color: '#cc0000' },
   { id: 'bestbuy', name: 'Best Buy', domain: 'bestbuy.com', icon: '⚡', color: '#ffe000' },
 ];
+
+/**
+ * Turns a typed partner code, or a pasted affiliate link, into the id stored for that store.
+ * A plain code is kept. A link is reduced to its partner parameter.
+ */
+export function readAffiliateValue(storeId, raw) {
+  const text = String(raw ?? '').trim();
+  if (!text) return { value: '', status: 'code' };
+  if (!/^https?:\/\//i.test(text)) return { value: text, status: 'code' };
+
+  try {
+    const parsed = new URL(text);
+    const keys = AFFILIATE_PARAM_KEYS[storeId] || [];
+    for (const key of keys) {
+      const value = parsed.searchParams.get(key);
+      if (value && value.trim()) return { value: value.trim(), status: 'code' };
+    }
+    return { value: '', status: 'missing' };
+  } catch {
+    return { value: text, status: 'code' };
+  }
+}
+
+/** True while every store still has the built-in Secret Gifter sample code. */
+export function usesSampleAffiliateCodes(config = DEFAULT_AFFILIATE_CONFIG) {
+  return SAMPLE_CODE_KEYS.every((key) => config?.[key] === DEFAULT_AFFILIATE_CONFIG[key]);
+}
 
 /**
  * Loads current affiliate config from localStorage
@@ -48,7 +97,8 @@ export function detectStore(url) {
   const lower = url.toLowerCase();
   if (lower.includes('amazon.') || lower.includes('amzn.to')) return 'amazon';
   if (lower.includes('walmart.')) return 'walmart';
-  if (lower.includes('basspro.') || lower.includes('cabelas.')) return 'basspro';
+  if (lower.includes('cabelas.')) return 'cabelas';
+  if (lower.includes('basspro.')) return 'basspro';
   if (lower.includes('target.')) return 'target';
   if (lower.includes('bestbuy.')) return 'bestbuy';
   return 'other';
@@ -75,8 +125,7 @@ export function applyAffiliateTag(url, config = getStoredAffiliateConfig()) {
       return parsed.toString();
     }
 
-    if (store === 'basspro' && config.bassProPartnerId) {
-      // Bass Pro / Cabela's affiliate partner identifier
+    if ((store === 'basspro' || store === 'cabelas') && config.bassProPartnerId) {
       parsed.searchParams.set('affCode', config.bassProPartnerId);
       parsed.searchParams.set('utm_source', 'affiliate');
       return parsed.toString();
@@ -117,8 +166,9 @@ export function generateStoreSearchUrl(query, store = 'amazon', config = getStor
       : base;
   }
 
-  if (store === 'basspro') {
-    const base = `https://www.basspro.com/shop/en/SearchDisplay?searchTerm=${encQuery}`;
+  if (store === 'basspro' || store === 'cabelas') {
+    const host = store === 'cabelas' ? 'www.cabelas.com' : 'www.basspro.com';
+    const base = `https://${host}/shop/en/SearchDisplay?searchTerm=${encQuery}`;
     return config.enabled && config.bassProPartnerId
       ? `${base}&affCode=${encodeURIComponent(config.bassProPartnerId)}`
       : base;

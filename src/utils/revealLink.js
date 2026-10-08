@@ -1,3 +1,4 @@
+// Shared send path for any gift-type app: email, text, and the reveal link.
 import { encodeSecretPayload } from './crypto.js';
 import { getStoredAffiliateConfig } from './affiliate.js';
 
@@ -23,6 +24,9 @@ export function buildRevealPayload(event, match) {
     giverName: giver.name,
     receiverName: receiver.name,
     wishlist: receiver.wishlist || [],
+    listTitle: receiver.listTitle || '',
+    ageBand: receiver.ageBand || '',
+    shopFor: receiver.shopFor || '',
     likes: receiver.likes || '',
     dislikes: receiver.dislikes || '',
     budget: event.budget,
