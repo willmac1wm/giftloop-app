@@ -1,6 +1,7 @@
 import { and, eq, inArray, lte } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { deliveries, exchanges, members, notificationJobs, notificationPrefs } from "../../db/schema.js";
+import { scheduledGiftReminder, localDay } from "../../src/retention/notificationTiming.js";
 import { assignmentNotice } from "../../src/server/assignments.js";
 import { providerEnv, readProviders, sendEmail, sendSms } from "../../src/server/messages.js";
 import { deliveryDecision } from "../../src/server/notifyPolicy.js";
@@ -40,6 +41,18 @@ export default async function handler() {
     if (!person || !exchange || person.status === "declined" || (job.kind === "reunion" && (exchange.organizerId !== person.userId || person.status !== "accepted"))) {
       await db.update(notificationJobs).set({ status: "cancelled", detail: "The exchange or person is no longer active." }).where(eq(notificationJobs.id, job.id));
       continue;
+    }
+    if (job.kind === "reminder") {
+      const zone = prefs?.timezone || exchange.timezone || "UTC";
+      const target = scheduledGiftReminder(exchange.eventDate, prefs, zone);
+      if (!target || exchange.eventDate < localDay(now, zone)) {
+        await db.update(notificationJobs).set({ status: "cancelled", detail: "The gift date has passed or is missing." }).where(eq(notificationJobs.id, job.id));
+        continue;
+      }
+      if (target > now) {
+        await db.update(notificationJobs).set({ status: "pending", runAt: target, detail: "Updated to your reminder timing." }).where(eq(notificationJobs.id, job.id));
+        continue;
+      }
     }
     const prior = await db
       .select()

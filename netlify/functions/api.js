@@ -16,6 +16,7 @@ import {
   wishItems,
   wishLists,
 } from "../../db/schema.js";
+import { timingPreferences, scheduledGiftReminder, localDay } from "../../src/retention/notificationTiming.js";
 import { handleRetention } from "../../src/server/retentionRoutes.js";
 import { cleanVibe } from "../../src/retention/model.js";
 import { AGE_BANDS, SHOP_FOR } from "../../src/data/giftProfile.js";
@@ -836,6 +837,7 @@ async function handleSettings(user, method, body) {
   const [existing] = await db.select().from(notificationPrefs).where(eq(notificationPrefs.userId, user.id)).limit(1);
   if (method === "GET") {
     return json({
+      ...timingPreferences({}, existing || {}),
       emailInvites: existing?.emailInvites !== false,
       emailAssignments: existing?.emailAssignments !== false,
       emailReminders: existing?.emailReminders !== false,
@@ -843,7 +845,10 @@ async function handleSettings(user, method, body) {
       phone: existing?.phone || "",
     });
   }
+  let timing;
+  try { timing = timingPreferences(body, existing || {}); } catch (error) { return json({ error: error.message }, 400); }
   const next = {
+    ...timing,
     userId: user.id,
     emailInvites: body.emailInvites !== false,
     emailAssignments: body.emailAssignments !== false,
@@ -857,6 +862,20 @@ async function handleSettings(user, method, body) {
     await db.update(notificationPrefs).set(next).where(eq(notificationPrefs.userId, user.id));
   } else {
     await db.insert(notificationPrefs).values(next);
+  }
+  // Reschedule pending gift-date reminders immediately, including changes to an earlier day.
+  // Explicit next-exchange planning reminders retain the date the organizer chose.
+  const seats = await db.select().from(members).where(eq(members.userId, user.id));
+  for (const seat of seats) {
+    const [exchange] = await db.select().from(exchanges).where(eq(exchanges.id, seat.exchangeId)).limit(1);
+    if (!exchange) continue;
+    const zone = next.timezone || exchange.timezone || "UTC";
+    const target = scheduledGiftReminder(exchange.eventDate, next, zone);
+    const expired = !target || exchange.eventDate < localDay(new Date(), zone);
+    await db.update(notificationJobs).set(expired
+      ? { status: "cancelled", detail: "The gift date has passed or is missing." }
+      : { runAt: target, detail: "Updated to your reminder timing." })
+      .where(and(eq(notificationJobs.memberId, seat.id), eq(notificationJobs.kind, "reminder"), eq(notificationJobs.status, "pending")));
   }
   if (!next.smsOptIn) await cancelSmsJobsForUser(user.id);
   return json({ ...next, smsStoppedAt: undefined, smsOptIn: next.smsOptIn });
@@ -875,16 +894,18 @@ async function handleQueueReminders(exchange) {
       .where(and(eq(notificationJobs.memberId, person.id), eq(notificationJobs.kind, "reminder"), eq(notificationJobs.status, "pending")));
     if (pending.length) continue;
     const prefs = await prefsFor(person.userId);
+    const reminderAt = scheduledGiftReminder(exchange.eventDate, prefs, exchange.timezone || "UTC");
+    if (!reminderAt || exchange.eventDate < localDay(new Date(), prefs?.timezone || exchange.timezone || "UTC")) continue;
     for (const channel of ["email", "sms"]) {
-      const decision = deliveryDecision({ channel, kind: "reminder", prefs, memberStatus: person.status });
-      if (!decision.send) continue;
+      const decision = deliveryDecision({ channel, kind: "reminder", prefs, memberStatus: person.status, now: reminderAt, timeZone: exchange.timezone || "UTC" });
+      if (!decision.send && !decision.defer) continue;
       if (channel === "email" && !person.email) continue;
       await db.insert(notificationJobs).values({
         exchangeId: exchange.id,
         memberId: person.id,
         channel,
         kind: "reminder",
-        runAt: when,
+        runAt: decision.defer ? decision.runAt : reminderAt,
       });
       queued += 1;
     }

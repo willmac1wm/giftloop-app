@@ -12,7 +12,8 @@
     "test:integration": "node scripts/integration-api.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "netlify database migrations apply",
-    "test:retention": "node scripts/test-retention.mjs"
+    "test:retention": "node scripts/test-retention.mjs",
+    "test:notification-timing": "node scripts/test-notification-timing.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.2",

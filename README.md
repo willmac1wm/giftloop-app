@@ -33,6 +33,14 @@ These files exist. They do not finish the job in local Vite, because Netlify Ide
 
 No concrete limit in this app requires replacing Netlify Database, Netlify Identity, Netlify Functions, Resend, or Twilio. Supabase and Inngest were a suggestion. They are not the stack, and this repo does not install them.
 
+## Notification timing
+
+Account → Notifications → **Reminder timing & quiet hours** lets each member choose a gift-date reminder 1, 3, 7, or 14 days ahead, a preferred local time, an IANA time zone, and quiet-hour start/end times. Defaults are seven days ahead at 09:00 with 21:00–08:00 quiet hours. Timing does not enroll anyone in SMS or turn off opt-outs. Gift-date reminders still require the organizer to queue them; saving preferences alone does not schedule new messages.
+
+Changes reschedule pending gift-date jobs. The worker checks current preferences before sending, delays messages during personal quiet hours, and cancels gift-date reminders after the event date. Explicit next-exchange planning dates are preserved, with quick choices for one month, six months, or six weeks before next year’s gift date. A missed preferred time can deliver on the next eligible run while the gift date has not passed. Scheduled processing is approximately every 15 minutes, not exact-time delivery. Identity sign-in emails are outside these exchange-message preferences.
+
+Deploy migration `20261008002502_notification_timing` before using the settings. `npm run test:notification-timing` covers local dates, fractional time zones, daylight-saving gaps/folds, quiet hours, preferences, opt-outs, and planning presets. Live provider and iPhone checks remain pending.
+
 ## Returning groups and gift preferences
 
 Implemented on this branch; deployment and live account/iPhone checks are still required:

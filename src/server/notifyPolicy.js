@@ -1,3 +1,4 @@
+import { timingPreferences, inQuietHours } from "../retention/notificationTiming.js";
 export const MAX_SENDS = 3;
 
 export function deliveryDecision({ channel, kind, prefs, sentCount = 0, resend = false, memberStatus = "accepted", now = new Date(), timeZone = "America/Los_Angeles" }) {
@@ -19,7 +20,8 @@ export function deliveryDecision({ channel, kind, prefs, sentCount = 0, resend =
   }
   if (sentCount >= MAX_SENDS) return { send: false, reason: "Send limit reached." };
   if (sentCount > 0 && resend !== true && kind !== "reminder") return { send: false, reason: "Already sent." };
-  const hours = quietHours(now, timeZone);
+  const timing = timingPreferences({}, prefs || {});
+  const hours = quietHours(now, timing.timezone || timeZone, timing.quietStart, timing.quietEnd);
   if (hours.quiet) {
     return { send: false, defer: true, reason: "Quiet hours. This notice waits until morning.", runAt: hours.runAt };
   }
@@ -30,14 +32,15 @@ export function localHour(now, timeZone) {
   return Number(new Intl.DateTimeFormat("en-US", { timeZone, hour: "2-digit", hourCycle: "h23" }).format(now));
 }
 
-export function quietHours(now = new Date(), timeZone = "America/Los_Angeles") {
-  const hour = localHour(now, timeZone);
-  if (hour >= 8 && hour < 21) return { quiet: false, runAt: now };
-  for (let add = 1; add <= 18; add += 1) {
-    const candidate = new Date(now.getTime() + add * 60 * 60 * 1000);
-    if (localHour(candidate, timeZone) === 8) return { quiet: true, runAt: candidate };
+export function quietHours(now = new Date(), timeZone = "America/Los_Angeles", start = 21, end = 8) {
+  if (!inQuietHours(localHour(now, timeZone), start, end)) return { quiet: false, runAt: now };
+  // Quarter-hour boundaries match the scheduler and fractional time zones.
+  let candidate = new Date(Math.ceil((now.getTime() + 1) / 900000) * 900000);
+  for (let step = 0; step < 104; step += 1) {
+    if (!inQuietHours(localHour(candidate, timeZone), start, end)) return { quiet: true, runAt: candidate };
+    candidate = new Date(candidate.getTime() + 900000);
   }
-  return { quiet: true, runAt: new Date(now.getTime() + 8 * 60 * 60 * 1000) };
+  return { quiet: true, runAt: candidate };
 }
 
 export function reminderRunAt(eventDate) {
