@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { celebrateUnwrap } from '../utils/christmasConfetti';
 import { Gift, Sparkles, CheckCircle2, Lock, Calendar, DollarSign, Heart, Ban, ArrowLeft, BookmarkCheck } from 'lucide-react';
 import { sound } from '../utils/audio';
-import ShopForMatch from './ShopForMatch';
 import DealBanner from './DealBanner';
-import GiftFinder from './GiftFinder';
 
 export default function SecretRevealView({ payload, onBackToOrganizer }) {
   const [unwrapped, setUnwrapped] = useState(false);
@@ -16,8 +14,6 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
     receiverName = 'Special Someone',
     wishlist = [],
     listTitle = '',
-    ageBand = '',
-    shopFor = '',
     likes = '',
     dislikes = '',
     budget = '$30 - $40',
@@ -78,10 +74,6 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
         <p className="text-sm text-slate-300 mt-1">
           Your private Secret Santa assignment has arrived.
         </p>
-      </div>
-
-      <div className="w-full max-w-lg mb-4">
-        <DealBanner affiliate={payload?.affiliate} />
       </div>
 
       {!unwrapped ? (
@@ -150,29 +142,19 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
             </div>
           </div>
 
-          <div className="py-5 space-y-4">
-            <h3 className="text-base font-semibold text-white text-left">My recipient&apos;s wishes</h3>
-            <GiftFinder
-              readOnly
-              personName={receiverName}
-              listTitle={listTitle}
-              ageBand={ageBand}
-              shopFor={shopFor}
-              wishes={wishlist}
-              hobbies={likes}
-              budget={budget}
-              affiliate={payload?.affiliate}
-            />
-            <ShopForMatch
-              receiverName={receiverName}
-              budget={budget}
-              likes={likes}
-              wishlist={wishlist}
-              listTitle={listTitle}
-              ageBand={ageBand}
-              shopFor={shopFor}
-              affiliate={payload?.affiliate}
-            />
+          <div className="py-5 space-y-4 text-left">
+            <div>
+              <h3 className="text-xs uppercase font-bold tracking-wider text-amber-400 mb-1.5">
+                Wishlist{listTitle ? ` · ${listTitle}` : ''}
+              </h3>
+              {wishTexts(wishlist).length === 0 ? (
+                <p className="text-sm text-slate-300">No wishes yet.</p>
+              ) : (
+                <ul className="text-sm text-slate-200 space-y-1 list-disc pl-5">
+                  {wishTexts(wishlist).map((line) => <li key={line}>{line}</li>)}
+                </ul>
+              )}
+            </div>
 
             {likes && (
               <div>
@@ -239,6 +221,19 @@ export default function SecretRevealView({ payload, onBackToOrganizer }) {
           </div>
         </div>
       )}
+
+      {unwrapped && (
+        <div className="w-full max-w-lg mt-4">
+          <DealBanner affiliate={payload?.affiliate} />
+        </div>
+      )}
     </div>
   );
+}
+
+function wishTexts(wishlist) {
+  return (Array.isArray(wishlist) ? wishlist : [])
+    .map((item) => (item && typeof item === 'object' ? (item.title || item.url || '') : String(item || '')))
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
